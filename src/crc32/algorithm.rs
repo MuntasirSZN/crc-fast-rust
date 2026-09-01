@@ -1,4 +1,4 @@
-// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0.
+// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
 
 //! This module provides the CRC-32 algorithm implementations for areas where it differs from
 //! CRC-64.

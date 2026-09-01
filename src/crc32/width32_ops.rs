@@ -1,4 +1,4 @@
-// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0.
+// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
 
 //! Shared operations for CRC widths that operate in 32-bit space (CRC-16, CRC-32).
 //!

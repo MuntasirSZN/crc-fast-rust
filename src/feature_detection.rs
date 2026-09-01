@@ -1,4 +1,4 @@
-// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0.
+// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
 
 //! Feature detection system for safe and efficient hardware acceleration across different
 //! platforms.

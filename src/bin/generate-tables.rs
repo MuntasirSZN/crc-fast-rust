@@ -1,4 +1,4 @@
-// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0.
+// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
 
 //! Utility to generate pre-computed 16-lane lookup tables for all CRC algorithms.
 //!
@@ -8,7 +8,7 @@
 use crc_fast::arch::software::{generate_table_u16, generate_table_u32, generate_table_u64};
 
 fn main() {
-    println!("// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0.");
+    println!("// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.");
     println!();
     println!("//! Pre-generated 16-lane lookup tables for CRC calculations.");
     println!("//!");
