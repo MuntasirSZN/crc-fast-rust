@@ -34,7 +34,7 @@ pub(crate) fn miri_compatible_proptest_config() -> ProptestConfig {
 /// Creates a new aligned data vector from the input slice for testing.
 pub(crate) fn create_aligned_data(input: &[u8]) -> Vec<u8> {
     // Size of our target alignment structure
-    let align_size = std::mem::size_of::<[[u64; 4]; 2]>(); // 64 bytes
+    let align_size = core::mem::size_of::<[[u64; 4]; 2]>(); // 64 bytes
 
     // Create a zero-filled vector with padding to ensure we can find a properly aligned position
     let mut padded = vec![0; input.len() + align_size];

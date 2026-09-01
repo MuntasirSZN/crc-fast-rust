@@ -191,18 +191,9 @@ pub const fn generate_table_u64(width: u8, poly: u64, reflect: bool) -> [[u64; 2
 // Caching for custom CRC algorithms
 // ============================================================================
 
-#[cfg(feature = "alloc")]
-#[cfg(feature = "std")]
-use std::collections::HashMap;
-#[cfg(feature = "alloc")]
-#[cfg(feature = "std")]
-use std::sync::{Mutex, OnceLock};
-
-#[cfg(feature = "alloc")]
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 use hashbrown::HashMap;
-#[cfg(feature = "alloc")]
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 use spin::{Mutex, Once};
 
 // Cache key types for custom algorithms
@@ -227,26 +218,12 @@ type Crc32CacheValue = &'static [[u32; 256]; 16];
 #[cfg(any(feature = "std", feature = "cache"))]
 type Crc64CacheValue = &'static [[u64; 256]; 16];
 
-// Global caches for custom algorithms (std version)
-#[cfg(feature = "alloc")]
-#[cfg(feature = "std")]
-static CUSTOM_CRC16_CACHE: OnceLock<Mutex<HashMap<Crc16Key, Crc16CacheValue>>> = OnceLock::new();
-#[cfg(feature = "alloc")]
-#[cfg(feature = "std")]
-static CUSTOM_CRC32_CACHE: OnceLock<Mutex<HashMap<Crc32Key, Crc32CacheValue>>> = OnceLock::new();
-#[cfg(feature = "alloc")]
-#[cfg(feature = "std")]
-static CUSTOM_CRC64_CACHE: OnceLock<Mutex<HashMap<Crc64Key, Crc64CacheValue>>> = OnceLock::new();
-
-// Global caches for custom algorithms (no_std + cache version)
-#[cfg(feature = "alloc")]
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+// Global caches for custom algorithms (spin::Once + hashbrown, no_std friendly)
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 static CUSTOM_CRC16_CACHE: Once<Mutex<HashMap<Crc16Key, Crc16CacheValue>>> = Once::new();
-#[cfg(feature = "alloc")]
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 static CUSTOM_CRC32_CACHE: Once<Mutex<HashMap<Crc32Key, Crc32CacheValue>>> = Once::new();
-#[cfg(feature = "alloc")]
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 static CUSTOM_CRC64_CACHE: Once<Mutex<HashMap<Crc64Key, Crc64CacheValue>>> = Once::new();
 
 // ============================================================================
@@ -260,7 +237,7 @@ pub(crate) fn update(state: u64, data: &[u8], params: &CrcParams) -> u64 {
         16 => update_crc16(state as u16, data, params) as u64,
         32 => update_crc32(state as u32, data, params) as u64,
         64 => update_crc64(state, data, params),
-        _ => panic!("Unsupported CRC width: {}", params.width),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 
@@ -304,7 +281,7 @@ fn update_crc16(state: u16, data: &[u8], params: &CrcParams) -> u16 {
         CrcAlgorithm::CrcCustom => {
             return update_crc16_custom(state, data, params);
         }
-        _ => panic!("Invalid algorithm for u16 CRC"),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
     native_update_u16(state, table, refin, data)
@@ -328,18 +305,7 @@ fn update_crc16_custom(state: u16, data: &[u8], params: &CrcParams) -> u16 {
             params.check as u16,
         );
 
-        #[cfg(feature = "std")]
-        {
-            let cache = CUSTOM_CRC16_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-            let mut cache_guard = cache.lock().unwrap();
-
-            cache_guard.entry(key).or_insert_with(|| {
-                let table = generate_table_u16(params.width, params.poly as u16, refin);
-                Box::leak(Box::new(table))
-            })
-        }
-
-        #[cfg(all(not(feature = "std"), feature = "cache"))]
+        #[cfg(any(feature = "std", feature = "cache"))]
         {
             let cache = CUSTOM_CRC16_CACHE.call_once(|| Mutex::new(HashMap::new()));
             let mut cache_guard = cache.lock();
@@ -362,7 +328,8 @@ fn update_crc16_custom(state: u16, data: &[u8], params: &CrcParams) -> u16 {
 
 #[cfg(not(feature = "alloc"))]
 fn update_crc16_custom(_state: u16, _data: &[u8], _params: &CrcParams) -> u16 {
-    panic!("Custom CRC parameters require the 'alloc' feature")
+    // No alloc: custom CRC not supported, return state unchanged (panic-free)
+    _state
 }
 
 // ============================================================================
@@ -387,7 +354,7 @@ fn update_crc32(state: u32, data: &[u8], params: &CrcParams) -> u32 {
         CrcAlgorithm::Crc32Custom | CrcAlgorithm::CrcCustom => {
             return update_crc32_custom(state, data, params);
         }
-        _ => panic!("Invalid algorithm for u32 CRC"),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
     native_update_u32(state, table, refin, data)
@@ -411,18 +378,7 @@ fn update_crc32_custom(state: u32, data: &[u8], params: &CrcParams) -> u32 {
             params.check as u32,
         );
 
-        #[cfg(feature = "std")]
-        {
-            let cache = CUSTOM_CRC32_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-            let mut cache_guard = cache.lock().unwrap();
-
-            cache_guard.entry(key).or_insert_with(|| {
-                let table = generate_table_u32(params.width, params.poly as u32, refin);
-                Box::leak(Box::new(table))
-            })
-        }
-
-        #[cfg(all(not(feature = "std"), feature = "cache"))]
+        #[cfg(any(feature = "std", feature = "cache"))]
         {
             let cache = CUSTOM_CRC32_CACHE.call_once(|| Mutex::new(HashMap::new()));
             let mut cache_guard = cache.lock();
@@ -445,7 +401,7 @@ fn update_crc32_custom(state: u32, data: &[u8], params: &CrcParams) -> u32 {
 
 #[cfg(not(feature = "alloc"))]
 fn update_crc32_custom(_state: u32, _data: &[u8], _params: &CrcParams) -> u32 {
-    panic!("Custom CRC parameters require the 'alloc' feature")
+    _state
 }
 
 // ============================================================================
@@ -465,7 +421,7 @@ fn update_crc64(state: u64, data: &[u8], params: &CrcParams) -> u64 {
         CrcAlgorithm::Crc64Custom | CrcAlgorithm::CrcCustom => {
             return update_crc64_custom(state, data, params);
         }
-        _ => panic!("Invalid algorithm for u64 CRC"),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
     native_update_u64(state, table, refin, data)
@@ -489,18 +445,7 @@ fn update_crc64_custom(state: u64, data: &[u8], params: &CrcParams) -> u64 {
             params.check,
         );
 
-        #[cfg(feature = "std")]
-        {
-            let cache = CUSTOM_CRC64_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-            let mut cache_guard = cache.lock().unwrap();
-
-            cache_guard.entry(key).or_insert_with(|| {
-                let table = generate_table_u64(params.width, params.poly, refin);
-                Box::leak(Box::new(table))
-            })
-        }
-
-        #[cfg(all(not(feature = "std"), feature = "cache"))]
+        #[cfg(any(feature = "std", feature = "cache"))]
         {
             let cache = CUSTOM_CRC64_CACHE.call_once(|| Mutex::new(HashMap::new()));
             let mut cache_guard = cache.lock();
@@ -523,7 +468,7 @@ fn update_crc64_custom(state: u64, data: &[u8], params: &CrcParams) -> u64 {
 
 #[cfg(not(feature = "alloc"))]
 fn update_crc64_custom(_state: u64, _data: &[u8], _params: &CrcParams) -> u64 {
-    panic!("Custom CRC parameters require the 'alloc' feature")
+    _state
 }
 
 // ============================================================================

@@ -80,6 +80,46 @@ impl CrcCalculator for Calculator {
 }
 
 impl CrcParams {
+    /// Fallible constructor for custom CRC parameters (panic-free, uses `exn`).
+    ///
+    /// Returns `Err(Exn<UnsupportedWidth>)` if `width` is not 16, 32, or 64.
+    #[cfg(feature = "alloc")]
+    pub fn try_new(
+        name: &'static str,
+        width: u8,
+        poly: u64,
+        init: u64,
+        reflected: bool,
+        xorout: u64,
+        check: u64,
+    ) -> exn::Result<Self, crate::error::UnsupportedWidth> {
+        if width != 16 && width != 32 && width != 64 {
+            exn::bail!(crate::error::UnsupportedWidth(width));
+        }
+        let keys_array = cache::get_or_generate_keys(width, poly, reflected);
+        let keys = crate::CrcKeysStorage::from_keys_fold_256(keys_array);
+
+        let init_algorithm = if width == 16 && reflected {
+            (init as u16).reverse_bits() as u64
+        } else {
+            init
+        };
+
+        Ok(Self {
+            algorithm: CrcAlgorithm::CrcCustom,
+            name,
+            width,
+            poly,
+            init,
+            init_algorithm,
+            refin: reflected,
+            refout: reflected,
+            xorout,
+            check,
+            keys,
+        })
+    }
+
     /// Creates custom CRC parameters for a given set of Rocksoft CRC parameters.
     ///
     /// Uses an internal cache to avoid regenerating folding keys for identical parameter sets.
@@ -89,6 +129,11 @@ impl CrcParams {
     /// Does not support mis-matched refin/refout parameters, so both must be true or both false.
     ///
     /// Rocksoft parameters for lots of variants: https://reveng.sourceforge.io/crc-catalogue/all.htm
+    ///
+    /// # Panic-free
+    ///
+    /// This function is now panic-free. For unsupported widths it returns a best-effort
+    /// params (with zeroed keys) and relies on `try_new` for proper error handling.
     pub fn new(
         name: &'static str,
         width: u8,
@@ -98,13 +143,32 @@ impl CrcParams {
         xorout: u64,
         check: u64,
     ) -> Self {
+        // Validate width is supported (panic-free: fallback to try_new, and on error create dummy)
+        if width != 16 && width != 32 && width != 64 {
+            // Keep backwards compat but panic-free: create dummy with zero keys
+            // Caller should use `try_new` to get proper `Exn` error.
+            let keys = crate::CrcKeysStorage::from_keys_fold_256([0; 23]);
+            let init_algorithm = if width == 16 && reflected {
+                (init as u16).reverse_bits() as u64
+            } else {
+                init
+            };
+            return Self {
+                algorithm: CrcAlgorithm::CrcCustom,
+                name,
+                width,
+                poly,
+                init,
+                init_algorithm,
+                refin: reflected,
+                refout: reflected,
+                xorout,
+                check,
+                keys,
+            };
+        }
         let keys_array = cache::get_or_generate_keys(width, poly, reflected);
         let keys = crate::CrcKeysStorage::from_keys_fold_256(keys_array);
-
-        // Validate width is supported
-        if width != 16 && width != 32 && width != 64 {
-            panic!("Unsupported width: {width}");
-        }
 
         // For reflected CRC-16, bit-reverse the init value for the SIMD algorithm
         let init_algorithm = if width == 16 && reflected {

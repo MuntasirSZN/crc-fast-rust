@@ -26,6 +26,12 @@ use iscsi::avx512_pclmulqdq::crc32_iscsi_avx512_v4s3x3;
 #[cfg(target_arch = "x86_64")]
 use iscsi::avx512_vpclmulqdq::crc32_iscsi_avx512_vpclmulqdq_v3x2;
 
+cpufeatures::new!(x86_sse42, "sse4.2");
+#[cfg(target_arch = "x86_64")]
+cpufeatures::new!(x86_avx512vl, "avx512vl");
+#[cfg(target_arch = "x86_64")]
+cpufeatures::new!(x86_vpclmulqdq, "vpclmulqdq");
+
 /// CRC32 iSCSI calculation using the highest available instruction set (post-AVX-512 support)
 ///
 /// This function is called by the wrapper layer after feature detection has been performed.
@@ -36,7 +42,7 @@ pub fn crc32_iscsi(crc: u32, data: &[u8]) -> u32 {
     let data_len = data.len();
 
     // SSE4.2 is required for native CRC32 instructions used in small buffer path
-    if data_len <= 256 && is_x86_feature_detected!("sse4.2") {
+    if data_len <= 256 && x86_sse42::get() {
         unsafe {
             return crc32_iscsi_small_fast(crc, data);
         }
@@ -46,14 +52,14 @@ pub fn crc32_iscsi(crc: u32, data: &[u8]) -> u32 {
     {
         // AVX512 + VPCLMULQDQ
 
-        if is_x86_feature_detected!("avx512vl") && is_x86_feature_detected!("vpclmulqdq") {
+        if x86_avx512vl::get() && x86_vpclmulqdq::get() {
             unsafe {
                 return crc32_iscsi_avx512_vpclmulqdq_v3x2(crc, data.as_ptr(), data_len);
             }
         }
 
         // AVX512
-        if is_x86_feature_detected!("avx512vl") {
+        if x86_avx512vl::get() {
             unsafe {
                 return crc32_iscsi_avx512_v4s3x3(crc, data.as_ptr(), data_len);
             }

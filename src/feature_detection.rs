@@ -3,44 +3,38 @@
 //! Feature detection system for safe and efficient hardware acceleration across different
 //! platforms.
 
-#[cfg(all(
-    not(feature = "std"),
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
-))]
+#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
 use spin::Once;
-#[cfg(all(
-    feature = "std",
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
-))]
-use std::sync::OnceLock;
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(all(
-    feature = "alloc",
-    not(feature = "std"),
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
-))]
-use alloc::string::{String, ToString};
 #[cfg(any(
     test,
     all(
-        feature = "std",
+        feature = "alloc",
         any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
     )
 ))]
-use std::string::{String, ToString};
+use alloc::string::{String, ToString};
 
-/// Global ArchOps instance cache - initialized once based on feature detection results
-#[cfg(all(
-    feature = "std",
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
-))]
-static ARCH_OPS_INSTANCE: OnceLock<ArchOpsInstance> = OnceLock::new();
-#[cfg(all(
-    not(feature = "std"),
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
-))]
+// CPU feature detection via `cpufeatures` crate (no_std friendly, replaces std::arch::is_*_feature_detected)
+#[cfg(target_arch = "aarch64")]
+cpufeatures::new!(cpuid_aes, "aes");
+#[cfg(target_arch = "aarch64")]
+cpufeatures::new!(cpuid_sha3, "sha3");
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+cpufeatures::new!(cpuid_sse41, "sse4.1");
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+cpufeatures::new!(cpuid_sse42, "sse4.2");
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+cpufeatures::new!(cpuid_pclmulqdq, "pclmulqdq");
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+cpufeatures::new!(cpuid_avx512vl, "avx512vl");
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+cpufeatures::new!(cpuid_vpclmulqdq, "vpclmulqdq");
+
+/// Global ArchOps instance cache - initialized once based on feature detection results (spin::Once for no_std friendliness)
+#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
 static ARCH_OPS_INSTANCE: Once<ArchOpsInstance> = Once::new();
 
 /// Performance tiers representing different hardware capability levels
@@ -138,20 +132,16 @@ unsafe fn detect_arch_capabilities() -> ArchCapabilities {
 ///
 /// Note: NEON is always available on AArch64 and is implicitly enabled by AES support.
 /// AES support provides the PMULL instructions needed for CRC calculations.
+/// Uses `cpufeatures` crate for runtime detection (no_std friendly via getauxval/sysctl).
 #[inline(always)]
-#[cfg(all(target_arch = "aarch64", feature = "std"))]
+#[cfg(target_arch = "aarch64")]
 unsafe fn detect_aarch64_features() -> ArchCapabilities {
-    use std::arch::is_aarch64_feature_detected;
-
-    // AES is available on essentially all AArch64 CPUs and provides the PMULL instructions
-    let has_aes = is_aarch64_feature_detected!("aes");
-
-    // CRC provides native CRC32 instructions for fusion techniques
-    let has_crc = is_aarch64_feature_detected!("crc");
-
-    // SHA3 is available on modern Aarch64 CPUs, and provides the EOR3 instruction for efficient
-    // XOR3 operations.
-    let has_sha3 = is_aarch64_feature_detected!("sha3");
+    // Runtime detection via cpufeatures (cached after first call); falls back to
+    // compile-time target_feature when OS detection unavailable (e.g. Windows aarch64)
+    let has_aes = cpuid_aes::get();
+    let has_sha3 = cpuid_sha3::get();
+    // CRC not supported by cpufeatures aarch64 crate; fallback to compile-time
+    let has_crc = cfg!(target_feature = "crc");
 
     ArchCapabilities {
         has_aes,
@@ -165,56 +155,17 @@ unsafe fn detect_aarch64_features() -> ArchCapabilities {
     }
 }
 
+/// x86/x86_64-specific feature detection (uses CPUID via cpufeatures, no_std friendly)
 #[inline(always)]
-#[cfg(all(target_arch = "aarch64", not(feature = "std")))]
-unsafe fn detect_aarch64_features() -> ArchCapabilities {
-    ArchCapabilities {
-        has_aes: cfg!(target_feature = "aes"),
-        has_crc: cfg!(target_feature = "crc"),
-        has_sha3: cfg!(target_feature = "sha3"),
-        has_sse41: false,
-        has_sse42: false,
-        has_pclmulqdq: false,
-        has_avx512vl: false,
-        has_vpclmulqdq: false,
-    }
-}
-
-/// x86/x86_64-specific feature detection
-#[inline(always)]
-#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "std"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 unsafe fn detect_x86_features() -> ArchCapabilities {
-    use std::arch::is_x86_feature_detected;
-
-    // SSE 4.1 and PCLMULQDQ support are the baseline for hardware acceleration
-    let has_sse41 = is_x86_feature_detected!("sse4.1");
-    let has_pclmulqdq = has_sse41 && is_x86_feature_detected!("pclmulqdq");
-
-    let has_avx512vl = has_pclmulqdq && is_x86_feature_detected!("avx512vl");
-    let has_vpclmulqdq = has_avx512vl && is_x86_feature_detected!("vpclmulqdq");
-    // SSE 4.2 provides native CRC32C instructions for fusion techniques
-    let has_sse42 = is_x86_feature_detected!("sse4.2");
-
-    ArchCapabilities {
-        has_aes: false,
-        has_crc: false,
-        has_sha3: false,
-        has_sse41,
-        has_sse42,
-        has_pclmulqdq,
-        has_avx512vl,
-        has_vpclmulqdq,
-    }
-}
-
-#[inline(always)]
-#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(feature = "std")))]
-unsafe fn detect_x86_features() -> ArchCapabilities {
-    let has_sse41 = cfg!(target_feature = "sse4.1");
-    let has_sse42 = cfg!(target_feature = "sse4.2");
-    let has_pclmulqdq = has_sse41 && cfg!(target_feature = "pclmulqdq");
-    let has_avx512vl = has_pclmulqdq && cfg!(target_feature = "avx512vl");
-    let has_vpclmulqdq = has_avx512vl && cfg!(target_feature = "vpclmulqdq");
+    // Runtime detection via cpufeatures (cached, uses CPUID directly)
+    let has_sse41 = cpuid_sse41::get();
+    let has_sse42 = cpuid_sse42::get();
+    // Hierarchical as before: pclmulqdq requires sse4.1 baseline
+    let has_pclmulqdq = has_sse41 && cpuid_pclmulqdq::get();
+    let has_avx512vl = has_pclmulqdq && cpuid_avx512vl::get();
+    let has_vpclmulqdq = has_avx512vl && cpuid_vpclmulqdq::get();
 
     ArchCapabilities {
         has_aes: false,
@@ -289,6 +240,7 @@ pub enum ArchOpsInstance {
 #[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
 impl ArchOpsInstance {
     #[inline(always)]
+    #[allow(dead_code)]
     pub fn get_tier(&self) -> PerformanceTier {
         match self {
             #[cfg(target_arch = "aarch64")]
@@ -321,18 +273,7 @@ impl ArchOpsInstance {
 /// This function provides access to the cached ArchOps instance that was selected based on
 /// feature detection results at library initialization time, eliminating runtime feature
 /// detection overhead from hot paths.
-#[cfg(all(
-    feature = "std",
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
-))]
-pub fn get_arch_ops() -> &'static ArchOpsInstance {
-    ARCH_OPS_INSTANCE.get_or_init(create_arch_ops)
-}
-
-#[cfg(all(
-    not(feature = "std"),
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
-))]
+#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
 pub fn get_arch_ops() -> &'static ArchOpsInstance {
     ARCH_OPS_INSTANCE.call_once(create_arch_ops)
 }

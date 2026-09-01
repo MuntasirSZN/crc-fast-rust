@@ -3,10 +3,23 @@
 //! This is a simple program that checks if the target architecture supports certain features.
 
 #[cfg(target_arch = "aarch64")]
-use std::arch::is_aarch64_feature_detected;
-
+cpufeatures::new!(aarch64_aes, "aes");
+#[cfg(target_arch = "aarch64")]
+cpufeatures::new!(aarch64_sha3, "sha3");
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
-use std::arch::is_x86_feature_detected;
+cpufeatures::new!(x86_sse2, "sse2");
+#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+cpufeatures::new!(x86_sse41, "sse4.1");
+#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+cpufeatures::new!(x86_pclmulqdq, "pclmulqdq");
+#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+cpufeatures::new!(x86_avx2, "avx2");
+#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+cpufeatures::new!(x86_vpclmulqdq, "vpclmulqdq");
+#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+cpufeatures::new!(x86_avx512f, "avx512f");
+#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+cpufeatures::new!(x86_avx512vl, "avx512vl");
 
 use crc_fast::get_calculator_target;
 use crc_fast::CrcAlgorithm::{Crc32Iscsi, Crc32IsoHdlc, Crc64Nvme};
@@ -30,19 +43,20 @@ fn aarch64_features() {
 
     println!("[AArch64] Checking for features...");
 
-    if is_aarch64_feature_detected!("neon") {
+    // NEON is mandatory on aarch64; use compile-time check
+    if cfg!(target_feature = "neon") {
         println!("  {checkmark} NEON",);
     } else {
         println!("  x NEON");
     }
 
-    if is_aarch64_feature_detected!("crc") {
+    if cfg!(target_feature = "crc") {
         println!("  {checkmark} CRC",);
     } else {
         println!("  x CRC");
     }
 
-    if is_aarch64_feature_detected!("sha3") {
+    if aarch64_sha3::get() {
         println!("  {checkmark} SHA3\n",);
     } else {
         println!("  x SHA3\n");
@@ -55,43 +69,43 @@ fn x86_features() {
 
     println!("[X86] Checking for features...");
 
-    if is_x86_feature_detected!("sse2") {
+    if x86_sse2::get() {
         println!("  {checkmark} SSE2",);
     } else {
         println!("  x SSE2");
     }
 
-    if is_x86_feature_detected!("sse4.1") {
+    if x86_sse41::get() {
         println!("  {checkmark} SSE4.1",);
     } else {
         println!("  x SSE4.1");
     }
 
-    if is_x86_feature_detected!("pclmulqdq") {
+    if x86_pclmulqdq::get() {
         println!("  {checkmark} PCLMULQDQ",);
     } else {
         println!("  x PCLMULQDQ");
     }
 
-    if is_x86_feature_detected!("avx2") {
+    if x86_avx2::get() {
         println!("  {checkmark} AVX2",);
     } else {
         println!("  x AVX2");
     }
 
-    if is_x86_feature_detected!("vpclmulqdq") {
+    if x86_vpclmulqdq::get() {
         println!("  {checkmark} VPCLMULQDQ",);
     } else {
         println!("  x VPCLMULQDQ");
     }
 
-    if is_x86_feature_detected!("avx512f") {
+    if x86_avx512f::get() {
         println!("  {checkmark} AVX512F",);
     } else {
         println!("  x AVX512F");
     }
 
-    if is_x86_feature_detected!("avx512vl") {
+    if x86_avx512vl::get() {
         println!("  {checkmark} AVX512VL\n",);
     } else {
         println!("  x AVX512VL\n");

@@ -705,7 +705,7 @@ fn test_crc_calculation_performance_before_and_after_changes() {
 #[allow(deprecated)]
 fn test_memory_usage_impact_of_enum_based_storage() {
     // Test that enum-based storage doesn't significantly increase memory usage
-    use std::mem;
+    use core::mem;
 
     // Test memory size of different storage variants
     let keys_23 = [0u64; 23];
@@ -1578,7 +1578,7 @@ mod ffi_tests {
         // Test that we can safely access all keys through the pointer
         unsafe {
             let keys_slice =
-                std::slice::from_raw_parts(ffi_params.keys, ffi_params.key_count as usize);
+                core::slice::from_raw_parts(ffi_params.keys, ffi_params.key_count as usize);
 
             // Verify all keys are accessible and correct
             for (i, &key) in keys_slice.iter().enumerate() {
@@ -1591,7 +1591,7 @@ mod ffi_tests {
 
             // Test that we can create multiple slices from the same pointer
             let keys_slice2 =
-                std::slice::from_raw_parts(ffi_params.keys, ffi_params.key_count as usize);
+                core::slice::from_raw_parts(ffi_params.keys, ffi_params.key_count as usize);
             assert_eq!(
                 keys_slice, keys_slice2,
                 "Multiple slices should be identical"

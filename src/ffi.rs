@@ -13,14 +13,16 @@
 use crate::CrcAlgorithm;
 use crate::CrcParams;
 use crate::{get_calculator_target, Digest};
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::ffi::CStr;
-use std::os::raw::c_char;
-use std::slice;
-use std::sync::{Mutex, OnceLock};
+use core::ffi::c_char;
+use core::ffi::CStr;
+use core::slice;
+use hashbrown::{HashMap, HashSet};
+use spin::{Mutex, Once};
 
-static STRING_CACHE: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+static STRING_CACHE: Once<Mutex<HashSet<&'static str>>> = Once::new();
 
 /// Error codes for FFI operations
 #[repr(C)]
@@ -28,8 +30,6 @@ static STRING_CACHE: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
 pub enum CrcFastError {
     /// Operation completed successfully
     Success = 0,
-    /// Lock was poisoned (thread panicked while holding lock)
-    LockPoisoned = 1,
     /// Null pointer was passed where non-null required
     NullPointer = 2,
     /// Invalid key count for CRC parameters
@@ -49,7 +49,6 @@ impl CrcFastError {
     fn message(&self) -> &'static str {
         match self {
             CrcFastError::Success => "Operation completed successfully",
-            CrcFastError::LockPoisoned => "Lock was poisoned (thread panicked while holding lock)",
             CrcFastError::NullPointer => "Null pointer was passed where non-null required",
             CrcFastError::InvalidKeyCount => "Invalid key count for CRC parameters",
             CrcFastError::UnsupportedWidth => "Unsupported CRC width (must be 32 or 64)",
@@ -62,7 +61,7 @@ impl CrcFastError {
 
 // Thread-local storage for the last error that occurred
 thread_local! {
-    static LAST_ERROR: std::cell::Cell<CrcFastError> = const { std::cell::Cell::new(CrcFastError::Success) };
+    static LAST_ERROR: core::cell::Cell<CrcFastError> = const { core::cell::Cell::new(CrcFastError::Success) };
 }
 
 /// Sets the thread-local last error
@@ -76,38 +75,31 @@ fn clear_last_error() {
 }
 
 // Global storage for stable key pointers to ensure they remain valid across FFI boundary
-static STABLE_KEY_STORAGE: OnceLock<Mutex<HashMap<u64, Box<[u64]>>>> = OnceLock::new();
+static STABLE_KEY_STORAGE: Once<Mutex<HashMap<u64, Box<[u64]>>>> = Once::new();
 
 /// Creates a stable pointer to the keys for FFI usage.
 /// The keys are stored in global memory to ensure the pointer remains valid.
 /// Returns (pointer, count) on success, or (null, 0) on error.
-/// Sets CrcFastError::LockPoisoned on lock failure.
 fn create_stable_key_pointer(keys: &crate::CrcKeysStorage) -> (*const u64, u32) {
-    let storage = STABLE_KEY_STORAGE.get_or_init(|| Mutex::new(HashMap::new()));
+    let storage = STABLE_KEY_STORAGE.call_once(|| Mutex::new(HashMap::new()));
 
     // Create a unique hash for this key set to avoid duplicates
     let key_hash = match keys {
         crate::CrcKeysStorage::KeysFold256(keys) => {
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            use std::hash::{Hash, Hasher};
+            use core::hash::{Hash, Hasher};
             keys.hash(&mut hasher);
             hasher.finish()
         }
         crate::CrcKeysStorage::KeysFutureTest(keys) => {
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            use std::hash::{Hash, Hasher};
+            use core::hash::{Hash, Hasher};
             keys.hash(&mut hasher);
             hasher.finish()
         }
     };
 
-    let mut storage_map = match storage.lock() {
-        Ok(guard) => guard,
-        Err(_) => {
-            set_last_error(CrcFastError::LockPoisoned);
-            return (std::ptr::null(), 0);
-        }
-    };
+    let mut storage_map = storage.lock();
 
     // Check if we already have this key set stored
     if let Some(stored_keys) = storage_map.get(&key_hash) {
@@ -121,11 +113,10 @@ fn create_stable_key_pointer(keys: &crate::CrcKeysStorage) -> (*const u64, u32) 
     };
 
     let boxed_keys = key_vec.into_boxed_slice();
+    let ptr = boxed_keys.as_ptr();
     let count = boxed_keys.len() as u32;
 
     storage_map.insert(key_hash, boxed_keys);
-
-    let ptr = storage_map.get(&key_hash).expect("just inserted").as_ptr();
 
     (ptr, count)
 }
@@ -276,13 +267,13 @@ pub extern "C" fn crc_fast_error_message(error: CrcFastError) -> *const c_char {
     let message = error.message();
     // These are static strings, so we can safely return them as C strings
     // The strings are guaranteed to be valid UTF-8 and null-terminated
-    match std::ffi::CString::new(message) {
+    match alloc::ffi::CString::new(message) {
         Ok(c_str) => {
             // Leak the string so it remains valid for the lifetime of the program
             // This is safe because error messages are static and small
             Box::leak(Box::new(c_str)).as_ptr()
         }
-        Err(_) => std::ptr::null(),
+        Err(_) => core::ptr::null(),
     }
 }
 
@@ -310,7 +301,7 @@ fn try_params_from_ffi(value: &CrcFastParams) -> Option<CrcParams> {
     }
 
     // Convert C array back to appropriate CrcKeysStorage
-    let keys = unsafe { std::slice::from_raw_parts(value.keys, value.key_count as usize) };
+    let keys = unsafe { core::slice::from_raw_parts(value.keys, value.key_count as usize) };
 
     let storage = match value.key_count {
         23 => match keys.try_into() {
@@ -351,7 +342,7 @@ fn try_params_from_ffi(value: &CrcFastParams) -> Option<CrcParams> {
 impl From<CrcFastParams> for CrcParams {
     fn from(value: CrcFastParams) -> Self {
         try_params_from_ffi(&value)
-            .expect("Invalid CRC parameters: unsupported key count or null pointer")
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() })
     }
 }
 
@@ -473,7 +464,7 @@ pub extern "C" fn crc_fast_digest_new_with_params(
             } else {
                 set_last_error(CrcFastError::InvalidKeyCount);
             }
-            std::ptr::null_mut()
+            core::ptr::null_mut()
         }
     }
 }
@@ -852,14 +843,14 @@ pub extern "C" fn crc_fast_get_custom_params(
 pub extern "C" fn crc_fast_get_calculator_target(algorithm: CrcFastAlgorithm) -> *const c_char {
     let target = get_calculator_target(algorithm.into());
 
-    match std::ffi::CString::new(target) {
+    match alloc::ffi::CString::new(target) {
         Ok(s) => {
             clear_last_error();
             s.into_raw()
         }
         Err(_) => {
             set_last_error(CrcFastError::StringConversionError);
-            std::ptr::null_mut()
+            core::ptr::null_mut()
         }
     }
 }
@@ -943,15 +934,15 @@ unsafe fn convert_to_string(data: *const u8, len: usize) -> String {
     }
 
     // Safely construct string slice from raw parts
-    match std::str::from_utf8(slice::from_raw_parts(data, len)) {
+    match core::str::from_utf8(slice::from_raw_parts(data, len)) {
         Ok(s) => s.to_string(),
         Err(_) => String::new(), // Return empty string for invalid UTF-8
     }
 }
 
 fn get_or_leak_string(s: &str) -> &'static str {
-    let cache = STRING_CACHE.get_or_init(|| Mutex::new(HashSet::new()));
-    let mut cache = cache.lock().unwrap();
+    let cache = STRING_CACHE.call_once(|| Mutex::new(HashSet::new()));
+    let mut cache = cache.lock();
 
     // Check if we already have this string
     if let Some(&cached) = cache.get(s) {

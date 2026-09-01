@@ -59,13 +59,16 @@ required-features = ["std"]
 # environments. This configuration is safe because the alloc feature in digest does not depend on its default features
 digest = { version = "0.11", default-features = false, features = ["alloc"], optional = true }
 
-# no_std support
-# spin is optional - only needed on architectures with SIMD (for feature detection)
-# or when cache feature is enabled
-spin = { version = "0.12.3", default-features = false, features = ["mutex", "once", "rwlock", "spin_mutex"], optional = true }
+# spin for no_std-friendly Once/Mutex/RwLock (always required for feature detection)
+spin = { version = "0.12.3", default-features = false, features = ["mutex", "once", "rwlock", "spin_mutex", "barrier"] }
 
-# hashbrown is only needed when caching is enabled in no_std
 hashbrown = { version = "0.17.1", optional = true }
+
+# lightweight runtime CPU feature detection (no_std friendly) - replaces std::arch::is_*_feature_detected
+cpufeatures = "0.3"
+
+# context-aware error handling (no_std, alloc) - replaces panic/unwrap, only when alloc available
+exn = { version = "0.4.0-rc.1", default-features = false, optional = true }
 
 [dev-dependencies]
 cbindgen = "0.29"
@@ -78,16 +81,11 @@ regex = "1.13"
 [features]
 # default features
 default = ["ffi", "panic-handler", "std"]
-alloc = ["digest"]  # marker feature for heap allocation support
-ffi = []  # C/C++ compatible dynamic/static library, planned to become optional in the next MAJOR version (v2) to reduce overhead
+alloc = ["digest", "exn"]  # marker feature for heap allocation support
+ffi = ["std"]  # ffi currently requires std (uses hashbrown/spin/alloc and std file IO)
 panic-handler = []  # Provides panic handler for no_std library checks (disable in binaries)
-std = ["alloc"]  # std implies alloc is available
-
-cache = [
-  "alloc",
-  "hashbrown",
-  "spin",
-]  # no_std caching requires alloc + hashbrown HashMap + spin for synchronization
+std = ["alloc", "hashbrown"]  # std implies alloc + hashbrown for cache
+cache = ["alloc", "hashbrown"]  # caching requires alloc + hashbrown
 # optional features
 cli = ["std"]  # command line interface binaries (checksum, arch-check, get-custom-params)
 

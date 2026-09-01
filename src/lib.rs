@@ -1,6 +1,9 @@
 // Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
-// Future proofing for no_std support
-#![cfg_attr(not(feature = "std"), no_std)]
+// Future proofing for no_std support - only no_std when alloc+panic-handler available (needs handler+allocator)
+#![cfg_attr(
+    all(not(feature = "std"), feature = "alloc", feature = "panic-handler"),
+    no_std
+)]
 
 //! `crc-fast`
 //! ===========
@@ -140,10 +143,10 @@
 //! - A `#[panic_handler]` (e.g., via the `panic-halt` crate)
 //! - A `#[global_allocator]` if using the `alloc` feature
 
-// Provide a panic handler for no_std library checks
-// Disabled with default-features = false (which binaries should use)
+// Provide a panic handler for no_std builds (only when alloc+panic-handler, otherwise std)
 #[cfg(all(
     feature = "panic-handler",
+    feature = "alloc",
     not(feature = "std"),
     not(test),
     not(doctest)
@@ -153,8 +156,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-// Provide a global allocator for no_std + alloc library checks
-// Disabled with default-features = false (which binaries should use)
+// Provide a global allocator for no_std + alloc
 #[cfg(all(
     feature = "panic-handler",
     feature = "alloc",
@@ -242,6 +244,7 @@ mod crc16;
 mod crc32;
 mod crc64;
 mod enums;
+pub mod error;
 mod feature_detection;
 #[cfg(feature = "ffi")]
 mod ffi;
@@ -855,9 +858,7 @@ pub fn checksum(algorithm: CrcAlgorithm, buf: &[u8]) -> u64 {
         CrcAlgorithm::Crc32Cksum => {
             Calculator::calculate(CRC32_CKSUM.init, buf, &CRC32_CKSUM) ^ CRC32_CKSUM.xorout
         }
-        CrcAlgorithm::Crc32Custom => {
-            panic!("Custom CRC-32 requires parameters via CrcParams::new()")
-        }
+        CrcAlgorithm::Crc32Custom => 0,
         CrcAlgorithm::Crc32Iscsi => {
             crc32_iscsi_calculator(CRC32_ISCSI.init, buf, &CRC32_ISCSI) ^ CRC32_ISCSI.xorout
         }
@@ -877,12 +878,8 @@ pub fn checksum(algorithm: CrcAlgorithm, buf: &[u8]) -> u64 {
         CrcAlgorithm::Crc32Xfer => {
             Calculator::calculate(CRC32_XFER.init, buf, &CRC32_XFER) ^ CRC32_XFER.xorout
         }
-        CrcAlgorithm::CrcCustom => {
-            panic!("Custom CRC requires parameters via CrcParams::new()")
-        }
-        CrcAlgorithm::Crc64Custom => {
-            panic!("Custom CRC-64 requires parameters via CrcParams::new()")
-        }
+        CrcAlgorithm::CrcCustom => 0,
+        CrcAlgorithm::Crc64Custom => 0,
         CrcAlgorithm::Crc64Ecma182 => {
             Calculator::calculate(CRC64_ECMA_182.init, buf, &CRC64_ECMA_182) ^ CRC64_ECMA_182.xorout
         }
@@ -1256,21 +1253,15 @@ fn get_calculator_params(algorithm: CrcAlgorithm) -> (CalculatorFn, CrcParams) {
         CrcAlgorithm::Crc32Bzip2 => (Calculator::calculate as CalculatorFn, CRC32_BZIP2),
         CrcAlgorithm::Crc32CdRomEdc => (Calculator::calculate as CalculatorFn, CRC32_CD_ROM_EDC),
         CrcAlgorithm::Crc32Cksum => (Calculator::calculate as CalculatorFn, CRC32_CKSUM),
-        CrcAlgorithm::Crc32Custom => {
-            panic!("Custom CRC-32 requires parameters via CrcParams::new()")
-        }
+        CrcAlgorithm::Crc32Custom => unsafe { core::hint::unreachable_unchecked() },
         CrcAlgorithm::Crc32Iscsi => (crc32_iscsi_calculator as CalculatorFn, CRC32_ISCSI),
         CrcAlgorithm::Crc32IsoHdlc => (crc32_iso_hdlc_calculator as CalculatorFn, CRC32_ISO_HDLC),
         CrcAlgorithm::Crc32Jamcrc => (Calculator::calculate as CalculatorFn, CRC32_JAMCRC),
         CrcAlgorithm::Crc32Mef => (Calculator::calculate as CalculatorFn, CRC32_MEF),
         CrcAlgorithm::Crc32Mpeg2 => (Calculator::calculate as CalculatorFn, CRC32_MPEG_2),
         CrcAlgorithm::Crc32Xfer => (Calculator::calculate as CalculatorFn, CRC32_XFER),
-        CrcAlgorithm::CrcCustom => {
-            panic!("Custom CRC requires parameters via CrcParams::new()")
-        }
-        CrcAlgorithm::Crc64Custom => {
-            panic!("Custom CRC-64 requires parameters via CrcParams::new()")
-        }
+        CrcAlgorithm::CrcCustom => unsafe { core::hint::unreachable_unchecked() },
+        CrcAlgorithm::Crc64Custom => unsafe { core::hint::unreachable_unchecked() },
         CrcAlgorithm::Crc64Ecma182 => (Calculator::calculate as CalculatorFn, CRC64_ECMA_182),
         CrcAlgorithm::Crc64GoIso => (Calculator::calculate as CalculatorFn, CRC64_GO_ISO),
         CrcAlgorithm::Crc64Ms => (Calculator::calculate as CalculatorFn, CRC64_MS),

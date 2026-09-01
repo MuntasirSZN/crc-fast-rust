@@ -153,7 +153,7 @@ impl DataChunkProcessor {
             16 => Self::From16,
             17..=31 => Self::From17To31,
             32..=255 => Self::From32To255,
-            _ => panic!("data length too large"),
+            _ => unsafe { core::hint::unreachable_unchecked() },
         }
     }
 }

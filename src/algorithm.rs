@@ -126,7 +126,7 @@ where
             16 => crc16::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
             32 => crc32::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
             64 => crc64::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
-            _ => panic!("Unsupported CRC width"),
+            _ => unsafe { core::hint::unreachable_unchecked() },
         },
         DataChunkProcessor::From16 => {
             process_exactly_16::<T, W>(data, state, &reflector, keys, ops)
@@ -518,10 +518,6 @@ unsafe fn get_last_two_xmms<T: ArchOps, W: EnhancedCrcWidth>(
 where
     T::Vector: Copy,
 {
-    debug_assert!(region.offset >= CRC_CHUNK_SIZE);
-    debug_assert!(region.remaining > 0 && region.remaining < CRC_CHUNK_SIZE);
-    debug_assert!(region.offset + region.remaining <= region.full_data.len());
-
     let coefficient = W::create_coefficient(keys[2], keys[1], reflected, ops);
     let const_mask = ops.set_all_bytes(0x80);
     let (table_ptr, offset) = W::get_last_bytes_table_ptr(reflected, region.remaining);

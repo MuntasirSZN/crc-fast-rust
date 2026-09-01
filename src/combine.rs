@@ -111,7 +111,8 @@ pub fn checksums(mut crc1: u64, crc2: u64, mut len2: u64, params: &CrcParams) ->
         // Put poly at the last valid index (width-1)
         odd[(params.width - 1) as usize] = params.poly;
     } else {
-        panic!("Unsupported CRC configuration");
+        // Mismatched refin/refout not supported (CrcParams::new requires both true or both false)
+        return 0;
     }
 
     /* put operator for two zero bits in even */

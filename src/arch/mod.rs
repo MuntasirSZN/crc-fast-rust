@@ -4,8 +4,8 @@
 //!
 //! It dispatches to the appropriate architecture-specific implementation
 
-#[cfg(all(target_arch = "aarch64", feature = "std"))]
-use std::arch::is_aarch64_feature_detected;
+#[cfg(target_arch = "aarch64")]
+cpufeatures::new!(arch_aes, "aes");
 
 use crate::CrcParams;
 
@@ -39,11 +39,8 @@ pub(crate) unsafe fn update(state: u64, bytes: &[u8], params: &CrcParams) -> u64
         ArchOpsInstance::Aarch64AesSha3(ops) => update_aarch64_aes_sha3(state, bytes, params, *ops),
         ArchOpsInstance::Aarch64Aes(ops) => update_aarch64_aes(state, bytes, params, *ops),
         ArchOpsInstance::SoftwareFallback => {
-            #[cfg(feature = "std")]
-            let has_features =
-                is_aarch64_feature_detected!("aes") && is_aarch64_feature_detected!("neon");
-            #[cfg(not(feature = "std"))]
-            let has_features = cfg!(target_feature = "aes") && cfg!(target_feature = "neon");
+            // Runtime check via cpufeatures (no_std friendly) - AES implies NEON on aarch64
+            let has_features = arch_aes::get() && cfg!(target_feature = "neon");
 
             if !has_features {
                 #[cfg(any(not(target_feature = "aes"), not(target_feature = "neon")))]
@@ -54,7 +51,7 @@ pub(crate) unsafe fn update(state: u64, bytes: &[u8], params: &CrcParams) -> u64
             }
 
             // This should likely never happen, but just in case
-            panic!("aarch64 features missing (NEON and/or AES)");
+            unsafe { core::hint::unreachable_unchecked() };
         }
     }
 }
@@ -72,7 +69,7 @@ unsafe fn update_aarch64_aes(
         64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
         32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        _ => panic!("Unsupported CRC width: {}", params.width),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 
@@ -89,7 +86,7 @@ unsafe fn update_aarch64_aes_sha3(
         64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
         32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        _ => panic!("Unsupported CRC width: {}", params.width),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 
@@ -131,7 +128,7 @@ unsafe fn update_x86_sse_pclmulqdq(
         64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
         32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        _ => panic!("Unsupported CRC width: {}", params.width),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 
@@ -148,7 +145,7 @@ unsafe fn update_x86_64_avx512_pclmulqdq(
         64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
         32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        _ => panic!("Unsupported CRC width: {}", params.width),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 
@@ -165,7 +162,7 @@ unsafe fn update_x86_64_avx512_vpclmulqdq(
         64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
         32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        _ => panic!("Unsupported CRC width: {}", params.width),
+        _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
 

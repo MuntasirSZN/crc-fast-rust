@@ -1,10 +1,10 @@
 // Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
 
+use core::hint::black_box;
 use crc_fast::checksum;
 use crc_fast::CrcAlgorithm;
 use criterion::*;
 use rand::{rng, Rng};
-use std::hint::black_box;
 use std::time::Duration;
 
 pub const SIZES: &[(&str, i32)] = &[
@@ -57,7 +57,7 @@ fn random_data(size: i32) -> Vec<u8> {
 
 fn create_aligned_data(input: &[u8]) -> Vec<u8> {
     // Size of our target alignment structure
-    let align_size = std::mem::size_of::<[[u64; 4]; 2]>(); // 64 bytes
+    let align_size = core::mem::size_of::<[[u64; 4]; 2]>(); // 64 bytes
 
     // Create a zero-filled vector with padding to ensure we can find a properly aligned position
     let mut padded = vec![0; input.len() + align_size];

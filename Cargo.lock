@@ -256,9 +256,11 @@ name = "crc-fast"
 version = "1.10.0"
 dependencies = [
  "cbindgen",
+ "cpufeatures",
  "crc",
  "criterion",
  "digest",
+ "exn",
  "hashbrown",
  "proptest",
  "rand 0.10.2",
@@ -371,6 +373,12 @@ dependencies = [
  "libc",
  "windows-sys",
 ]
+
+[[package]]
+name = "exn"
+version = "0.4.0-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5592af4187305bf22dc9aa258f98612f6aea4d86e49ea83e6fb2dbe91a5993"
 
 [[package]]
 name = "fastrand"

@@ -2,10 +2,10 @@
 
 //! This is a simple program to calculate a checksum from the command line
 
+use core::str::FromStr;
 use crc_fast::{checksum, checksum_file, CrcAlgorithm};
 use std::env;
 use std::process::ExitCode;
-use std::str::FromStr;
 
 #[derive(Debug)]
 struct Config {
@@ -85,12 +85,12 @@ impl BenchmarkRunner {
         while start.elapsed().as_secs_f64() < self.duration {
             match &self.data {
                 BenchmarkData::InMemory(data) => {
-                    std::hint::black_box(checksum(self.algorithm, data));
+                    core::hint::black_box(checksum(self.algorithm, data));
                 }
                 BenchmarkData::File(filename) => {
                     match checksum_file(self.algorithm, filename, None) {
                         Ok(result) => {
-                            std::hint::black_box(result);
+                            core::hint::black_box(result);
                         }
                         Err(e) => {
                             return Err(format!("Failed to read file during benchmark: {}", e));
@@ -483,7 +483,7 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     #[test]
     fn test_benchmark_config_validation_valid() {

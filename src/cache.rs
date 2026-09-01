@@ -20,24 +20,16 @@
 
 use crate::generate;
 
-#[cfg(feature = "std")]
-use std::collections::HashMap;
-#[cfg(feature = "std")]
-use std::sync::{OnceLock, RwLock};
-
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+#[cfg(any(feature = "std", feature = "cache"))]
 use hashbrown::HashMap;
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+#[cfg(any(feature = "std", feature = "cache"))]
 use spin::{Once, RwLock};
 
 /// Global cache storage for CRC parameter keys
 ///
-/// Uses OnceLock for thread-safe lazy initialization and RwLock for concurrent access.
-/// The cache maps parameter combinations to their pre-computed folding keys.
-#[cfg(feature = "std")]
-static CACHE: OnceLock<RwLock<HashMap<CrcParamsCacheKey, [u64; 23]>>> = OnceLock::new();
-
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+/// Uses spin::Once for thread-safe lazy initialization and spin::RwLock for concurrent access
+/// (hashbrown::HashMap for no_std friendliness).
+#[cfg(any(feature = "std", feature = "cache"))]
 static CACHE: Once<RwLock<HashMap<CrcParamsCacheKey, [u64; 23]>>> = Once::new();
 
 /// Cache key for storing CRC parameters that affect key generation
@@ -79,14 +71,8 @@ impl CrcParamsCacheKey {
 
 /// Initialize and return reference to the global cache
 ///
-/// Uses OnceLock to ensure thread-safe lazy initialization without requiring
-/// static initialization overhead. The cache is only created when first accessed.
-#[cfg(feature = "std")]
-fn get_cache() -> &'static RwLock<HashMap<CrcParamsCacheKey, [u64; 23]>> {
-    CACHE.get_or_init(|| RwLock::new(HashMap::new()))
-}
-
-#[cfg(all(not(feature = "std"), feature = "cache"))]
+/// Uses spin::Once for thread-safe lazy initialization.
+#[cfg(any(feature = "std", feature = "cache"))]
 fn get_cache() -> &'static RwLock<HashMap<CrcParamsCacheKey, [u64; 23]>> {
     CACHE.call_once(|| RwLock::new(HashMap::new()))
 }
@@ -116,31 +102,7 @@ fn get_cache() -> &'static RwLock<HashMap<CrcParamsCacheKey, [u64; 23]>> {
 ///
 /// Array of 23 pre-computed folding keys for SIMD CRC calculation
 pub fn get_or_generate_keys(width: u8, poly: u64, reflected: bool) -> [u64; 23] {
-    #[cfg(feature = "std")]
-    {
-        let cache_key = CrcParamsCacheKey::new(width, poly, reflected);
-
-        // Try cache read first - multiple threads can read simultaneously
-        // If lock is poisoned or read fails, continue to key generation
-        if let Ok(cache) = get_cache().read() {
-            if let Some(keys) = cache.get(&cache_key) {
-                return *keys;
-            }
-        }
-
-        // Generate keys outside of write lock to minimize lock hold time
-        let keys = generate::keys(width, poly, reflected);
-
-        // Try to cache the result (best effort - if this fails, we still return valid keys)
-        // Lock poisoning or write failure doesn't affect functionality
-        let _ = get_cache()
-            .write()
-            .map(|mut cache| cache.insert(cache_key, keys));
-
-        keys
-    }
-
-    #[cfg(all(not(feature = "std"), feature = "cache"))]
+    #[cfg(any(feature = "std", feature = "cache"))]
     {
         let cache_key = CrcParamsCacheKey::new(width, poly, reflected);
 
@@ -187,16 +149,8 @@ pub fn get_or_generate_keys(width: u8, poly: u64, reflected: bool) -> [u64; 23] 
 /// reduce performance as those threads will need to regenerate keys on their next access.
 #[cfg(test)]
 pub(crate) fn clear_cache() {
-    #[cfg(feature = "std")]
+    #[cfg(any(feature = "std", feature = "cache"))]
     {
-        // Best-effort cache clear - if lock is poisoned or unavailable, silently continue
-        // This ensures the function never panics or blocks program execution
-        let _ = get_cache().write().map(|mut cache| cache.clear());
-    }
-
-    #[cfg(all(not(feature = "std"), feature = "cache"))]
-    {
-        // spin::RwLock doesn't use Result wrapper
         let mut cache = get_cache().write();
         cache.clear();
     }
@@ -205,7 +159,7 @@ pub(crate) fn clear_cache() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
+    use hashbrown::HashSet;
 
     #[test]
     fn test_cache_key_creation() {
@@ -472,7 +426,8 @@ mod tests {
     // Thread safety tests
     #[test]
     fn test_concurrent_cache_reads() {
-        use std::sync::{Arc, Barrier};
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
 
         clear_cache();
@@ -518,7 +473,8 @@ mod tests {
     #[test]
     #[allow(clippy::needless_range_loop)] // Intentionally testing concurrent indexed access
     fn test_concurrent_cache_writes() {
-        use std::sync::{Arc, Barrier};
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
 
         clear_cache();
@@ -583,9 +539,10 @@ mod tests {
 
     #[test]
     fn test_read_write_contention() {
-        use std::sync::{Arc, Barrier};
+        use core::time::Duration;
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
-        use std::time::Duration;
 
         clear_cache();
 
@@ -678,7 +635,8 @@ mod tests {
 
     #[test]
     fn test_cache_consistency_under_concurrent_access() {
-        use std::sync::{Arc, Barrier};
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
 
         clear_cache();
@@ -737,9 +695,10 @@ mod tests {
 
     #[test]
     fn test_mixed_concurrent_operations() {
-        use std::sync::{Arc, Barrier};
+        use core::time::Duration;
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
-        use std::time::Duration;
 
         clear_cache();
 
@@ -819,8 +778,9 @@ mod tests {
     // Error handling tests
     #[test]
     fn test_cache_lock_poisoning_recovery() {
-        use std::panic;
-        use std::sync::{Arc, Mutex};
+        use core::panic;
+        use std::sync::Arc;
+        use std::sync::Mutex;
         use std::thread;
 
         clear_cache();
@@ -1001,9 +961,10 @@ mod tests {
 
     #[test]
     fn test_cache_concurrent_error_scenarios() {
-        use std::sync::{Arc, Barrier};
+        use core::time::Duration;
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
-        use std::time::Duration;
 
         clear_cache();
 
@@ -1581,7 +1542,8 @@ mod tests {
 
     #[test]
     fn test_crc_params_concurrent_creation() {
-        use std::sync::{Arc, Barrier};
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
 
         clear_cache();
@@ -1651,7 +1613,8 @@ mod tests {
 
     #[test]
     fn test_lock_poisoning_recovery() {
-        use std::sync::{Arc, Barrier};
+        use spin::Barrier;
+        use std::sync::Arc;
         use std::thread;
 
         clear_cache();
