@@ -288,22 +288,12 @@ pub enum CrcAlgorithm {
     Crc32Bzip2,
     Crc32CdRomEdc,
     Crc32Cksum,
-    #[deprecated(
-        since = "1.9.0",
-        note = "Use CrcCustom instead, which works with any supported width (16, 32, 64)"
-    )]
-    Crc32Custom, // Custom CRC-32 implementation, not defined in consts
     Crc32Iscsi,
     Crc32IsoHdlc,
     Crc32Jamcrc,
     Crc32Mef,
     Crc32Mpeg2,
     Crc32Xfer,
-    #[deprecated(
-        since = "1.9.0",
-        note = "Use CrcCustom instead, which works with any supported width (16, 32, 64)"
-    )]
-    Crc64Custom, // Custom CRC-64 implementation, not defined in consts
     Crc64Ecma182,
     Crc64GoIso,
     Crc64Ms,
@@ -723,7 +713,6 @@ impl Write for Digest {
 /// assert_eq!(checksum, 0xcbf43926);
 /// ```
 #[inline]
-#[allow(deprecated)]
 pub fn checksum(algorithm: CrcAlgorithm, buf: &[u8]) -> u64 {
     // avoid using get_calculator_params() here to reduce overhead for small data sizes
     match algorithm {
@@ -849,7 +838,6 @@ pub fn checksum(algorithm: CrcAlgorithm, buf: &[u8]) -> u64 {
         CrcAlgorithm::Crc32Cksum => {
             Calculator::calculate(CRC32_CKSUM.init, buf, &CRC32_CKSUM) ^ CRC32_CKSUM.xorout
         }
-        CrcAlgorithm::Crc32Custom => 0,
         CrcAlgorithm::Crc32Iscsi => {
             crc32_iscsi_calculator(CRC32_ISCSI.init, buf, &CRC32_ISCSI) ^ CRC32_ISCSI.xorout
         }
@@ -870,7 +858,6 @@ pub fn checksum(algorithm: CrcAlgorithm, buf: &[u8]) -> u64 {
             Calculator::calculate(CRC32_XFER.init, buf, &CRC32_XFER) ^ CRC32_XFER.xorout
         }
         CrcAlgorithm::CrcCustom => 0,
-        CrcAlgorithm::Crc64Custom => 0,
         CrcAlgorithm::Crc64Ecma182 => {
             Calculator::calculate(CRC64_ECMA_182.init, buf, &CRC64_ECMA_182) ^ CRC64_ECMA_182.xorout
         }
@@ -1197,7 +1184,6 @@ pub fn get_calculator_target(_algorithm: CrcAlgorithm) -> String {
 
 /// Returns the calculator function and parameters for the specified CRC algorithm.
 #[inline(always)]
-#[allow(deprecated)]
 fn get_calculator_params(algorithm: CrcAlgorithm) -> (CalculatorFn, CrcParams) {
     match algorithm {
         CrcAlgorithm::Crc16Arc => (Calculator::calculate as CalculatorFn, CRC16_ARC),
@@ -1244,7 +1230,6 @@ fn get_calculator_params(algorithm: CrcAlgorithm) -> (CalculatorFn, CrcParams) {
         CrcAlgorithm::Crc32Bzip2 => (Calculator::calculate as CalculatorFn, CRC32_BZIP2),
         CrcAlgorithm::Crc32CdRomEdc => (Calculator::calculate as CalculatorFn, CRC32_CD_ROM_EDC),
         CrcAlgorithm::Crc32Cksum => (Calculator::calculate as CalculatorFn, CRC32_CKSUM),
-        CrcAlgorithm::Crc32Custom => unsafe { core::hint::unreachable_unchecked() },
         CrcAlgorithm::Crc32Iscsi => (crc32_iscsi_calculator as CalculatorFn, CRC32_ISCSI),
         CrcAlgorithm::Crc32IsoHdlc => (crc32_iso_hdlc_calculator as CalculatorFn, CRC32_ISO_HDLC),
         CrcAlgorithm::Crc32Jamcrc => (Calculator::calculate as CalculatorFn, CRC32_JAMCRC),
@@ -1252,7 +1237,6 @@ fn get_calculator_params(algorithm: CrcAlgorithm) -> (CalculatorFn, CrcParams) {
         CrcAlgorithm::Crc32Mpeg2 => (Calculator::calculate as CalculatorFn, CRC32_MPEG_2),
         CrcAlgorithm::Crc32Xfer => (Calculator::calculate as CalculatorFn, CRC32_XFER),
         CrcAlgorithm::CrcCustom => unsafe { core::hint::unreachable_unchecked() },
-        CrcAlgorithm::Crc64Custom => unsafe { core::hint::unreachable_unchecked() },
         CrcAlgorithm::Crc64Ecma182 => (Calculator::calculate as CalculatorFn, CRC64_ECMA_182),
         CrcAlgorithm::Crc64GoIso => (Calculator::calculate as CalculatorFn, CRC64_GO_ISO),
         CrcAlgorithm::Crc64Ms => (Calculator::calculate as CalculatorFn, CRC64_MS),

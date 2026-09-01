@@ -231,7 +231,6 @@ static CUSTOM_CRC64_CACHE: Once<Mutex<HashMap<Crc64Key, Crc64CacheValue>>> = Onc
 // ============================================================================
 
 #[allow(unused)]
-#[allow(deprecated)]
 pub(crate) fn update(state: u64, data: &[u8], params: &CrcParams) -> u64 {
     match params.width {
         16 => update_crc16(state as u16, data, params) as u64,
@@ -350,8 +349,7 @@ fn update_crc32(state: u32, data: &[u8], params: &CrcParams) -> u32 {
         CrcAlgorithm::Crc32Mef => (&tables::crc32::CRC32_MEF_TABLE, true),
         CrcAlgorithm::Crc32Mpeg2 => (&tables::crc32::CRC32_MPEG_2_TABLE, false),
         CrcAlgorithm::Crc32Xfer => (&tables::crc32::CRC32_XFER_TABLE, false),
-        #[allow(deprecated)]
-        CrcAlgorithm::Crc32Custom | CrcAlgorithm::CrcCustom => {
+        CrcAlgorithm::CrcCustom => {
             return update_crc32_custom(state, data, params);
         }
         _ => unsafe { core::hint::unreachable_unchecked() },
@@ -417,8 +415,7 @@ fn update_crc64(state: u64, data: &[u8], params: &CrcParams) -> u64 {
         CrcAlgorithm::Crc64Redis => (&tables::crc64::CRC64_REDIS_TABLE, true),
         CrcAlgorithm::Crc64We => (&tables::crc64::CRC64_WE_TABLE, false),
         CrcAlgorithm::Crc64Xz => (&tables::crc64::CRC64_XZ_TABLE, true),
-        #[allow(deprecated)]
-        CrcAlgorithm::Crc64Custom | CrcAlgorithm::CrcCustom => {
+        CrcAlgorithm::CrcCustom => {
             return update_crc64_custom(state, data, params);
         }
         _ => unsafe { core::hint::unreachable_unchecked() },

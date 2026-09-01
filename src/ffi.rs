@@ -168,14 +168,12 @@ pub enum CrcFastAlgorithm {
     Crc32Bzip2,
     Crc32CdRomEdc,
     Crc32Cksum,
-    Crc32Custom,
     Crc32Iscsi,
     Crc32IsoHdlc,
     Crc32Jamcrc,
     Crc32Mef,
     Crc32Mpeg2,
     Crc32Xfer,
-    Crc64Custom,
     Crc64Ecma182,
     Crc64GoIso,
     Crc64Ms,
@@ -186,7 +184,6 @@ pub enum CrcFastAlgorithm {
 }
 
 // Convert from FFI enum to internal enum
-#[allow(deprecated)]
 impl From<CrcFastAlgorithm> for CrcAlgorithm {
     fn from(value: CrcFastAlgorithm) -> Self {
         match value {
@@ -227,7 +224,6 @@ impl From<CrcFastAlgorithm> for CrcAlgorithm {
             CrcFastAlgorithm::Crc32Bzip2 => CrcAlgorithm::Crc32Bzip2,
             CrcFastAlgorithm::Crc32CdRomEdc => CrcAlgorithm::Crc32CdRomEdc,
             CrcFastAlgorithm::Crc32Cksum => CrcAlgorithm::Crc32Cksum,
-            CrcFastAlgorithm::Crc32Custom => CrcAlgorithm::Crc32Custom,
             CrcFastAlgorithm::Crc32Iscsi => CrcAlgorithm::Crc32Iscsi,
             CrcFastAlgorithm::Crc32IsoHdlc => CrcAlgorithm::Crc32IsoHdlc,
             CrcFastAlgorithm::Crc32Jamcrc => CrcAlgorithm::Crc32Jamcrc,
@@ -235,7 +231,6 @@ impl From<CrcFastAlgorithm> for CrcAlgorithm {
             CrcFastAlgorithm::Crc32Mpeg2 => CrcAlgorithm::Crc32Mpeg2,
             CrcFastAlgorithm::Crc32Xfer => CrcAlgorithm::Crc32Xfer,
             CrcFastAlgorithm::CrcCustom => CrcAlgorithm::CrcCustom,
-            CrcFastAlgorithm::Crc64Custom => CrcAlgorithm::Crc64Custom,
             CrcFastAlgorithm::Crc64Ecma182 => CrcAlgorithm::Crc64Ecma182,
             CrcFastAlgorithm::Crc64GoIso => CrcAlgorithm::Crc64GoIso,
             CrcFastAlgorithm::Crc64Ms => CrcAlgorithm::Crc64Ms,
@@ -347,7 +342,6 @@ impl From<CrcFastParams> for CrcParams {
 }
 
 // Convert from internal struct to FFI struct
-#[allow(deprecated)]
 impl From<CrcParams> for CrcFastParams {
     fn from(params: CrcParams) -> Self {
         // Create stable key pointer for FFI usage
@@ -392,7 +386,6 @@ impl From<CrcParams> for CrcFastParams {
                 CrcAlgorithm::Crc32Bzip2 => CrcFastAlgorithm::Crc32Bzip2,
                 CrcAlgorithm::Crc32CdRomEdc => CrcFastAlgorithm::Crc32CdRomEdc,
                 CrcAlgorithm::Crc32Cksum => CrcFastAlgorithm::Crc32Cksum,
-                CrcAlgorithm::Crc32Custom => CrcFastAlgorithm::Crc32Custom,
                 CrcAlgorithm::Crc32Iscsi => CrcFastAlgorithm::Crc32Iscsi,
                 CrcAlgorithm::Crc32IsoHdlc => CrcFastAlgorithm::Crc32IsoHdlc,
                 CrcAlgorithm::Crc32Jamcrc => CrcFastAlgorithm::Crc32Jamcrc,
@@ -400,7 +393,6 @@ impl From<CrcParams> for CrcFastParams {
                 CrcAlgorithm::Crc32Mpeg2 => CrcFastAlgorithm::Crc32Mpeg2,
                 CrcAlgorithm::Crc32Xfer => CrcFastAlgorithm::Crc32Xfer,
                 CrcAlgorithm::CrcCustom => CrcFastAlgorithm::CrcCustom,
-                CrcAlgorithm::Crc64Custom => CrcFastAlgorithm::Crc64Custom,
                 CrcAlgorithm::Crc64Ecma182 => CrcFastAlgorithm::Crc64Ecma182,
                 CrcAlgorithm::Crc64GoIso => CrcFastAlgorithm::Crc64GoIso,
                 CrcAlgorithm::Crc64Ms => CrcFastAlgorithm::Crc64Ms,
