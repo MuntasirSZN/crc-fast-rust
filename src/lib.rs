@@ -1,7 +1,14 @@
 // Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
-// Future proofing for no_std support - only no_std when alloc+panic-handler available (needs handler+allocator)
+// Future proofing for no_std support - bare-metal (target_os=none/wasm) always no_std when !std, host only when alloc+panic-handler (so clippy --no-default-features stays std)
 #![cfg_attr(
-    all(not(feature = "std"), feature = "alloc", feature = "panic-handler"),
+    all(
+        not(feature = "std"),
+        any(
+            target_os = "none",
+            target_family = "wasm",
+            all(feature = "alloc", feature = "panic-handler")
+        )
+    ),
     no_std
 )]
 
@@ -143,11 +150,11 @@
 //! - A `#[panic_handler]` (e.g., via the `panic-halt` crate)
 //! - A `#[global_allocator]` if using the `alloc` feature
 
-// Provide a panic handler for no_std builds (only when alloc+panic-handler, otherwise std)
+// Provide a panic handler for no_std builds - bare-metal always when !std+panic-handler, host only when alloc+panic-handler
 #[cfg(all(
     feature = "panic-handler",
-    feature = "alloc",
     not(feature = "std"),
+    any(target_os = "none", target_family = "wasm", feature = "alloc"),
     not(test),
     not(doctest)
 ))]
