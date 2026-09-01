@@ -7,43 +7,59 @@ use std::path::PathBuf;
 use std::process::Command;
 
 /// Build the `checksum` binary and return its absolute path.
-/// cargo emits the binary path on stdout (last line) when invoked without `--message-format=json`,
-/// and the same path is used internally for `target/debug/...` plus the per-target triple subdir.
+/// Uses `cargo metadata --format-version=1 --no-deps` to discover the exact
+/// `target_directory` — robust regardless of CARGO_TARGET_DIR or host/target.
 fn checksum_binary() -> PathBuf {
-    let output = Command::new("cargo")
-        .args(["build", "--quiet", "--features", "cli", "--bin", "checksum"])
-        .output()
-        .expect("Failed to execute cargo build");
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR not set (tests must run via cargo)");
 
-    if !output.status.success() {
+    // 1. Build the binary with the cli feature (no-op if already built and up-to-date)
+    let build_status = Command::new("cargo")
+        .args(["build", "--quiet", "--features", "cli", "--bin", "checksum"])
+        .current_dir(&manifest_dir)
+        .status()
+        .expect("Failed to execute cargo build");
+    if !build_status.success() {
+        panic!("cargo build of `checksum` failed (status: {build_status})");
+    }
+
+    // 2. Use `cargo metadata` to find the exact target_directory (handles cross builds)
+    let meta_output = Command::new("cargo")
+        .args(["metadata", "--format-version=1", "--no-deps"])
+        .current_dir(&manifest_dir)
+        .output()
+        .expect("Failed to execute cargo metadata");
+    if !meta_output.status.success() {
         panic!(
-            "cargo build failed:\nstdout: {}\nstderr: {}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
+            "cargo metadata failed:\nstderr: {}",
+            String::from_utf8_lossy(&meta_output.stderr)
         );
     }
+    // Parse just `target_directory` from the JSON without pulling in serde_json.
+    let stdout = String::from_utf8_lossy(&meta_output.stdout);
+    let target_directory = extract_json_string(&stdout, "target_directory")
+        .unwrap_or_else(|| panic!("metadata.target_directory missing in:\n{stdout}"));
 
-    // Resolve the binary path. cargo places it in one of:
-    //   target/debug/checksum            (host build)
-    //   target/<triple>/debug/checksum   (cross build, e.g. CI macos x86_64 vs aarch64)
-    // We discover by walking `target/` for the binary named `checksum[.exe]`.
+    // cargo uses one of:
+    //   <target_dir>/debug/checksum                        (host)
+    //   <target_dir>/<triple>/debug/checksum               (cross)
     let exe_suffix = std::env::consts::EXE_SUFFIX;
-    let target_root = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("target"));
     let bin_name = format!("checksum{exe_suffix}");
+    let target_root = PathBuf::from(target_directory);
 
-    let direct = target_root.join("debug").join(&bin_name);
-    if direct.exists() {
-        return direct;
+    for dir in &["debug", "release"] {
+        let direct = target_root.join(dir).join(&bin_name);
+        if direct.exists() {
+            return direct;
+        }
     }
-
-    // Fallback: walk target/<triple>/debug/{bin_name} (some CI setups)
     if let Ok(entries) = std::fs::read_dir(&target_root) {
         for entry in entries.flatten() {
-            let candidate = entry.path().join("debug").join(&bin_name);
-            if candidate.exists() {
-                return candidate;
+            for dir in &["debug", "release"] {
+                let candidate = entry.path().join(dir).join(&bin_name);
+                if candidate.exists() {
+                    return candidate;
+                }
             }
         }
     }
@@ -87,6 +103,17 @@ fn run_checksum_assert_failure(bin: &std::path::Path, args: &[&str]) -> String {
         );
     }
     String::from_utf8_lossy(&output.stderr).into_owned()
+}
+
+/// Tiny JSON string-value extractor for `cargo metadata --format-version=1` output.
+/// Avoids pulling in `serde_json` as a dev-dependency just to read one field.
+/// Handles simple cases like `"target_directory":"/abs/path"` (no escaped quotes/backslash in value).
+fn extract_json_string(json: &str, key: &str) -> Option<String> {
+    let needle = format!("\"{}\":\"", key);
+    let start = json.find(&needle)? + needle.len();
+    let rest = &json[start..];
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
 }
 
 #[test]
