@@ -3,27 +3,84 @@
 #![cfg(feature = "cli")]
 
 use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
+
+const CARGO_BIN_NAME: &str = "crc-fast";
+
+/// Build the `checksum` binary once and return its absolute path.
+/// Subsequent calls re-use the existing build (cargo skips rebuild when nothing changed).
+fn checksum_binary() -> PathBuf {
+    let output = Command::new("cargo")
+        .args(["build", "--quiet", "--features", "cli", "--bin", "checksum"])
+        .output()
+        .expect("Failed to execute cargo build");
+
+    if !output.status.success() {
+        panic!(
+            "cargo build failed:\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    // target/debug/checksum (or target/<triple>/debug/checksum on cross)
+    let exe_suffix = std::env::consts::EXE_SUFFIX;
+    let debug_dir = std::env::var("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("target"))
+        .join("debug");
+    let bin = debug_dir.join(format!("checksum{exe_suffix}"));
+    assert!(
+        bin.exists(),
+        "checksum binary not found at {} after cargo build",
+        bin.display()
+    );
+    bin
+}
+
+/// Run the prebuilt `checksum` binary with `args` and assert it succeeded.
+fn run_checksum_assert_success(bin: &std::path::Path, args: &[&str]) {
+    let output = Command::new(bin)
+        .args(args)
+        .output()
+        .expect("Failed to execute checksum");
+    if !output.status.success() {
+        panic!(
+            "checksum {:?} failed (status {:?}):\nstdout: {}\nstderr: {}",
+            args,
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+/// Run the prebuilt `checksum` binary and assert it failed, returning the stderr.
+fn run_checksum_assert_failure(bin: &std::path::Path, args: &[&str]) -> String {
+    let output = Command::new(bin)
+        .args(args)
+        .output()
+        .expect("Failed to execute checksum");
+    if output.status.success() {
+        panic!(
+            "checksum {:?} unexpectedly succeeded:\nstdout: {}\nstderr: {}",
+            args,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    String::from_utf8_lossy(&output.stderr).into_owned()
+}
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_flag_parsing() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
-            "-a",
-            "CRC-32/ISCSI",
-            "-b",
-        ])
+    let bin = checksum_binary();
+    let output = Command::new(&bin)
+        .args(["-a", "CRC-32/ISCSI", "-b", "--duration", "0.1"])
         .output()
-        .expect("Failed to execute command");
-
+        .expect("Failed to execute checksum");
     assert!(
         output.status.success(),
         "Command should succeed with -b flag"
@@ -32,135 +89,73 @@ fn test_benchmark_flag_parsing() {
     assert!(stdout.contains("Algorithm: CRC-32/ISCSI"));
     assert!(stdout.contains("Throughput:"));
     assert!(stdout.contains("GiB/s"));
+    let _ = CARGO_BIN_NAME;
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_with_size_parameter() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
-            "-a",
-            "CRC-32/ISCSI",
-            "-b",
-            "--size",
-            "1024",
-        ])
-        .output()
-        .expect("Failed to execute command");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let bin = checksum_binary();
+    let stdout = String::from_utf8_lossy(
+        &Command::new(&bin)
+            .args(["-a", "CRC-32/ISCSI", "-b", "--size", "1024"])
+            .output()
+            .expect("Failed to execute checksum")
+            .stdout,
+    )
+    .into_owned();
     assert!(stdout.contains("Data Size: 1,024 bytes"));
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_with_duration_parameter() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
-            "-a",
-            "CRC-32/ISCSI",
-            "-b",
-            "--duration",
-            "1.0",
-        ])
-        .output()
-        .expect("Failed to execute command");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let bin = checksum_binary();
+    let stdout = String::from_utf8_lossy(
+        &Command::new(&bin)
+            .args(["-a", "CRC-32/ISCSI", "-b", "--duration", "1.0"])
+            .output()
+            .expect("Failed to execute checksum")
+            .stdout,
+    )
+    .into_owned();
     assert!(stdout.contains("Duration: 1."));
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_invalid_size() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
-            "-a",
-            "CRC-32/ISCSI",
-            "-b",
-            "--size",
-            "0",
-        ])
-        .output()
-        .expect("Failed to execute command");
-
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let bin = checksum_binary();
+    let stderr = run_checksum_assert_failure(&bin, &["-a", "CRC-32/ISCSI", "-b", "--size", "0"]);
     assert!(stderr.contains("Size must be greater than 0"));
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_invalid_duration() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
-            "-a",
-            "CRC-32/ISCSI",
-            "-b",
-            "--duration",
-            "0",
-        ])
-        .output()
-        .expect("Failed to execute command");
-
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let bin = checksum_binary();
+    let stderr =
+        run_checksum_assert_failure(&bin, &["-a", "CRC-32/ISCSI", "-b", "--duration", "0"]);
     assert!(stderr.contains("Duration must be greater than 0"));
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_with_file_input() {
+    let bin = checksum_binary();
+
     // Use a unique temp file to avoid races when tests run in parallel
     let mut temp_path = std::env::temp_dir();
     temp_path.push(format!(
         "test_benchmark_file_{}_{}.txt",
         std::process::id(),
-        // tiny thread id hash to avoid collisions if same pid reuses
         format!("{:?}", std::thread::current().id()).len()
     ));
     fs::write(&temp_path, "Hello, benchmark world!").expect("Failed to create test file");
     let temp_str = temp_path.to_str().expect("temp path not utf8");
 
-    let output = Command::new("cargo")
+    let output = Command::new(&bin)
         .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
             "-a",
             "CRC-32/ISCSI",
             "-b",
@@ -170,16 +165,19 @@ fn test_benchmark_with_file_input() {
             "0.5",
         ])
         .output()
-        .expect("Failed to execute command");
+        .expect("Failed to execute checksum");
 
     // Clean up
     let _ = fs::remove_file(&temp_path);
 
     if !output.status.success() {
-        eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-        eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        panic!(
+            "checksum failed (status {:?}):\nstdout: {}\nstderr: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Data Size: 23 bytes"));
 }
@@ -187,112 +185,90 @@ fn test_benchmark_with_file_input() {
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_with_string_input() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
-            "-a",
-            "CRC-32/ISCSI",
-            "-b",
-            "-s",
-            "test string",
-            "--duration",
-            "0.5",
-        ])
-        .output()
-        .expect("Failed to execute command");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let bin = checksum_binary();
+    let stdout = String::from_utf8_lossy(
+        &Command::new(&bin)
+            .args([
+                "-a",
+                "CRC-32/ISCSI",
+                "-b",
+                "-s",
+                "test string",
+                "--duration",
+                "0.5",
+            ])
+            .output()
+            .expect("Failed to execute checksum")
+            .stdout,
+    )
+    .into_owned();
     assert!(stdout.contains("Data Size: 11 bytes"));
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_different_algorithms() {
+    let bin = checksum_binary();
     let algorithms = ["CRC-32/ISCSI", "CRC-64/NVME"];
 
     for algorithm in &algorithms {
-        let output = Command::new("cargo")
-            .args([
-                "run",
-                "--quiet",
-                "--features",
-                "cli",
-                "--bin",
-                "checksum",
-                "--",
-                "-a",
-                algorithm,
-                "-b",
-                "--duration",
-                "0.5",
-            ])
-            .output()
-            .expect("Failed to execute command");
-
+        run_checksum_assert_success(&bin, &["-a", algorithm, "-b", "--duration", "0.5"]);
+        let stdout = String::from_utf8_lossy(
+            &Command::new(&bin)
+                .args(["-a", algorithm, "-b", "--duration", "0.5"])
+                .output()
+                .expect("Failed to execute checksum")
+                .stdout,
+        )
+        .into_owned();
         assert!(
-            output.status.success(),
-            "Algorithm {} should work",
-            algorithm
+            stdout.contains(&format!("Algorithm: {}", algorithm)),
+            "Algorithm {} should work; got stdout: {}",
+            algorithm,
+            stdout
         );
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains(&format!("Algorithm: {}", algorithm)));
     }
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_size_without_benchmark_flag() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
-            "-a",
-            "CRC-32/ISCSI",
-            "--size",
-            "1024",
-        ])
-        .output()
-        .expect("Failed to execute command");
-
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let bin = checksum_binary();
+    let stderr = run_checksum_assert_failure(&bin, &["-a", "CRC-32/ISCSI", "--size", "1024"]);
     assert!(stderr.contains("--size and --duration can only be used with -b flag"));
 }
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_nonexistent_file() {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--features",
-            "cli",
-            "--bin",
-            "checksum",
-            "--",
+    let bin = checksum_binary();
+    // Use an absolute path to a guaranteed-missing file in the system temp dir,
+    // so it cannot accidentally exist from a previous test run.
+    let mut missing_path = std::env::temp_dir();
+    missing_path.push(format!(
+        "definitely_missing_{}_{}_{}.txt",
+        std::process::id(),
+        format!("{:?}", std::thread::current().id()).len(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    assert!(!missing_path.exists(), "test file leaked from prior run");
+
+    let stderr = run_checksum_assert_failure(
+        &bin,
+        &[
             "-a",
             "CRC-32/ISCSI",
             "-b",
             "-f",
-            "nonexistent_file.txt",
-        ])
-        .output()
-        .expect("Failed to execute command");
-
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("File not found"));
+            missing_path.to_str().expect("temp path not utf8"),
+        ],
+    );
+    assert!(
+        stderr.contains("File not found"),
+        "expected 'File not found' in stderr, got: {}",
+        stderr
+    );
 }
