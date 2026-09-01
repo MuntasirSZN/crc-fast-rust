@@ -19,14 +19,14 @@ jobs:
         run: |
           echo "Current commit: ${{ github.sha }}"
           echo "Current ref: ${{ github.ref }}"
-          
+
           # Check if there's a previous successful workflow run for this exact commit
           PREVIOUS_RUN=$(gh api \
             -H "Accept: application/vnd.github+json" \
             "/repos/${{ github.repository }}/actions/workflows/tests.yml/runs?status=success&per_page=5" \
             --jq '.workflow_runs[] | select(.head_sha == "${{ github.sha }}") | .id' \
             | head -n 1)
-          
+
           if [ -n "$PREVIOUS_RUN" ] && [ "$PREVIOUS_RUN" != "${{ github.run_id }}" ]; then
             echo "Found previous successful run: $PREVIOUS_RUN"
             echo "should_skip=true" >> $GITHUB_OUTPUT
@@ -56,7 +56,7 @@ jobs:
     if: needs.check-previous-run.outputs.should_skip != 'true'
     strategy:
       matrix:
-        os: [ubuntu-22.04-arm, ubuntu-24.04-arm, macos-14, macos-15, macos-26, macos-latest, windows-11-arm]
+        os: [ubuntu-26.04-arm, macos-latest, windows-11-arm]
         rust-toolchain:
           - "1.89" # minimum for this crate, when AVX-512 VPCLMULQDQ was stabilized
           - "stable"
@@ -88,7 +88,7 @@ jobs:
     if: needs.check-previous-run.outputs.should_skip != 'true'
     strategy:
       matrix:
-        os: [ ubuntu-latest, ubuntu-22.04, ubuntu-24.04, macos-15-intel, windows-2022, windows-2025, windows-latest ]
+        os: [ubuntu-latest, macos-15-intel, windows-latest]
         rust-toolchain:
           - "1.89" # minimum for this crate, when AVX-512 VPCLMULQDQ was stabilized
           - "stable"
@@ -115,7 +115,7 @@ jobs:
         run: cargo test --all-features
 
   test-x86-linux:
-    name:  Test x86 Linux
+    name: Test x86 Linux
     needs: check-previous-run
     if: needs.check-previous-run.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
@@ -233,13 +233,16 @@ jobs:
     name: Test no_std
     needs: check-previous-run
     if: needs.check-previous-run.outputs.should_skip != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        target:
-          - thumbv7em-none-eabihf  # ARM Cortex-M4F/M7F
-          - thumbv8m.main-none-eabihf  # ARM Cortex-M33/M35P
-          - riscv32imac-unknown-none-elf  # RISC-V 32-bit
+        include:
+          - target: thumbv7em-none-eabihf # ARM Cortex-M4F/M7F
+            os: ubuntu-latest
+          - target: thumbv8m.main-none-eabihf # ARM Cortex-M33/M35P
+            os: ubuntu-latest
+          - target: riscv32imac-unknown-none-elf # RISC-V 32-bit
+            os: ubuntu-24.04-riscv
         rust-toolchain:
           - "1.89" # minimum for this crate, when AVX-512 VPCLMULQDQ was stabilized
           - "stable"
@@ -260,6 +263,9 @@ jobs:
         run: cargo check --target ${{ matrix.target }} --no-default-features --features cache,panic-handler --lib
       - name: Run no_std tests (on host with std test harness)
         run: cargo test --test no_std_tests
+      - name: Run all tests (RISC-V)
+        if: ${{ matrix.target == 'riscv32imac-unknown-none-elf' }}
+        run: cargo test --all-features
 
   test-wasm:
     name: Test WASM
@@ -320,7 +326,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        os: [ubuntu-latest, ubuntu-26.04-arm]
         fuzz-target:
           - digest_crc32_autosar
           - digest_crc32_bzip2
@@ -359,7 +365,19 @@ jobs:
 
   tests-complete:
     name: All tests complete
-    needs: [check-previous-run, test-aarch64, test-x86_64, test-x86-linux, test-x86-windows, test-software, miri-test-x86_64, test-no-std, test-wasm, fuzz-test]
+    needs:
+      [
+        check-previous-run,
+        test-aarch64,
+        test-x86_64,
+        test-x86-linux,
+        test-x86-windows,
+        test-software,
+        miri-test-x86_64,
+        test-no-std,
+        test-wasm,
+        fuzz-test,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -368,12 +386,12 @@ jobs:
           echo "Checking test results..."
           echo "Previous run check: ${{ needs.check-previous-run.result }}"
           echo "Should skip: ${{ needs.check-previous-run.outputs.should_skip }}"
-          
+
           if [ "${{ needs.check-previous-run.outputs.should_skip }}" == "true" ]; then
             echo "✓ Tests were skipped because this commit was already tested successfully"
             exit 0
           fi
-          
+
           # Check if any test job failed
           if [ "${{ needs.test-aarch64.result }}" == "failure" ] || \
              [ "${{ needs.test-x86_64.result }}" == "failure" ] || \
@@ -387,5 +405,5 @@ jobs:
             echo "✗ One or more test jobs failed"
             exit 1
           fi
-          
+
           echo "✓ All test jobs passed"
