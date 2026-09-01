@@ -113,10 +113,10 @@ fn create_stable_key_pointer(keys: &crate::CrcKeysStorage) -> (*const u64, u32) 
     };
 
     let boxed_keys = key_vec.into_boxed_slice();
-    let ptr = boxed_keys.as_ptr();
     let count = boxed_keys.len() as u32;
-
-    storage_map.insert(key_hash, boxed_keys);
+    // Use entry to avoid Stacked Borrows invalidation: ptr must be derived from
+    // the hashbrown allocation *after* insertion, not from the pre-move Box.
+    let ptr = storage_map.entry(key_hash).or_insert(boxed_keys).as_ptr();
 
     (ptr, count)
 }
