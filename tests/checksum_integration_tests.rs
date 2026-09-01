@@ -11,6 +11,7 @@ fn test_benchmark_flag_parsing() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -39,6 +40,7 @@ fn test_benchmark_with_size_parameter() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -64,6 +66,7 @@ fn test_benchmark_with_duration_parameter() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -89,6 +92,7 @@ fn test_benchmark_invalid_size() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -114,6 +118,7 @@ fn test_benchmark_invalid_duration() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -136,13 +141,21 @@ fn test_benchmark_invalid_duration() {
 #[test]
 #[cfg_attr(miri, ignore)] // Miri doesn't allow this due to isolation restrictions
 fn test_benchmark_with_file_input() {
-    // Create a temporary test file
-    let test_file = "test_benchmark_file.txt";
-    fs::write(test_file, "Hello, benchmark world!").expect("Failed to create test file");
+    // Use a unique temp file to avoid races when tests run in parallel
+    let mut temp_path = std::env::temp_dir();
+    temp_path.push(format!(
+        "test_benchmark_file_{}_{}.txt",
+        std::process::id(),
+        // tiny thread id hash to avoid collisions if same pid reuses
+        format!("{:?}", std::thread::current().id()).len()
+    ));
+    fs::write(&temp_path, "Hello, benchmark world!").expect("Failed to create test file");
+    let temp_str = temp_path.to_str().expect("temp path not utf8");
 
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -152,7 +165,7 @@ fn test_benchmark_with_file_input() {
             "CRC-32/ISCSI",
             "-b",
             "-f",
-            test_file,
+            temp_str,
             "--duration",
             "0.5",
         ])
@@ -160,8 +173,12 @@ fn test_benchmark_with_file_input() {
         .expect("Failed to execute command");
 
     // Clean up
-    let _ = fs::remove_file(test_file);
+    let _ = fs::remove_file(&temp_path);
 
+    if !output.status.success() {
+        eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    }
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Data Size: 23 bytes"));
@@ -173,6 +190,7 @@ fn test_benchmark_with_string_input() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -203,6 +221,7 @@ fn test_benchmark_different_algorithms() {
         let output = Command::new("cargo")
             .args([
                 "run",
+                "--quiet",
                 "--features",
                 "cli",
                 "--bin",
@@ -233,6 +252,7 @@ fn test_benchmark_size_without_benchmark_flag() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
@@ -257,6 +277,7 @@ fn test_benchmark_nonexistent_file() {
     let output = Command::new("cargo")
         .args([
             "run",
+            "--quiet",
             "--features",
             "cli",
             "--bin",
