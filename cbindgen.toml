@@ -1,0 +1,19 @@
+language = "C"
+include_guard = "CRC_FAST_H"
+header = "/* crc_fast library C/C++ API - Copyright 2025 Don MacAskill */\n/* This header is auto-generated. Do not edit directly. */"
+style = "both"
+cpp_compat = true
+
+[export]
+exclude = [
+  "crc32_iscsi_impl",
+  "crc32_iso_hdlc_impl",
+  "get_iscsi_target",
+  "get_iso_hdlc_target",
+  "ISO_HDLC_TARGET",
+  "ISCSI_TARGET",
+  "CrcParams",
+]
+
+[export.rename]
+"Digest" = "CrcFastDigest"

@@ -47,6 +47,11 @@ STATIC_LIB_NAME := lib$(PROJECT_NAME).$(STATIC_LIB_EXTENSION)
 # CLI binaries
 CLI_BINARIES := checksum arch-check get-custom-params
 
+# Header generation (cbindgen)
+HEADER := libcrc_fast.h
+CBINDGEN_CONFIG := cbindgen.toml
+CBINDGEN := cbindgen
+
 # Default target
 .PHONY: all
 all: build
@@ -61,6 +66,20 @@ build: test
 test:
 	cargo test --all-features
 
+# Generate C header via cbindgen CLI (squeeze extra blank lines cbindgen emits)
+.PHONY: header
+header:
+	@command -v $(CBINDGEN) >/dev/null 2>&1 || { echo "cbindgen not found. Install with: cargo install cbindgen --force"; exit 1; }
+	@$(CBINDGEN) --config $(CBINDGEN_CONFIG) --crate crc-fast --quiet | cat -s > $(HEADER)
+	@echo "Generated $(HEADER)"
+
+# Verify C header is up-to-date (CI)
+.PHONY: check-header
+check-header:
+	@command -v $(CBINDGEN) >/dev/null 2>&1 || { echo "cbindgen not found. Install with: cargo install cbindgen --force"; exit 1; }
+	@$(CBINDGEN) --config $(CBINDGEN_CONFIG) --crate crc-fast --quiet | cat -s | diff -u $(HEADER) - > /dev/null || { echo "$(HEADER) is not up-to-date. Run 'make header' and commit."; exit 1; }
+	@echo "$(HEADER) is up-to-date"
+
 # Install the library and headers
 .PHONY: install
 install: print-paths build
@@ -71,7 +90,7 @@ install: print-paths build
 	install -m 644 target/release/$(LIB_NAME) $(DESTDIR)$(INSTALL_LIB_DIR)/
 	install -m 644 target/release/$(STATIC_LIB_NAME) $(DESTDIR)$(INSTALL_LIB_DIR)/
 
-	install -m 644 lib$(PROJECT_NAME).h $(DESTDIR)$(INSTALL_INCLUDE_DIR)/
+	install -m 644 $(HEADER) $(DESTDIR)$(INSTALL_INCLUDE_DIR)/
 
 	@for bin in $(CLI_BINARIES); do \
 		install -m 755 target/release/$$bin $(DESTDIR)$(INSTALL_BIN_DIR)/; \
@@ -86,7 +105,7 @@ install: print-paths build
 uninstall: print-paths
 	rm -f $(DESTDIR)$(INSTALL_LIB_DIR)/$(LIB_NAME)
 	rm -f $(DESTDIR)$(INSTALL_LIB_DIR)/$(STATIC_LIB_NAME)
-	rm -f $(DESTDIR)$(INSTALL_INCLUDE_DIR)/lib$(PROJECT_NAME).h
+	rm -f $(DESTDIR)$(INSTALL_INCLUDE_DIR)/$(HEADER)
 
 	@for bin in $(CLI_BINARIES); do \
 		rm -f $(DESTDIR)$(INSTALL_BIN_DIR)/$$bin; \
@@ -102,6 +121,7 @@ check:
 	cargo fmt --all
 	cargo check --workspace --all-targets --all-features
 	cargo clippy --workspace --all-targets --all-features --fix --allow-dirty -- -D warnings
+	$(MAKE) check-header
 #	cargo deny check all
 #	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
 #	cargo audit

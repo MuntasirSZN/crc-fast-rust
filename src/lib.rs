@@ -1,6 +1,9 @@
 // Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
-// Future proofing for no_std support
-#![cfg_attr(not(feature = "std"), no_std)]
+// Future proofing for no_std support - only no_std when alloc+panic-handler available (needs handler+allocator)
+#![cfg_attr(
+    all(not(feature = "std"), feature = "alloc", feature = "panic-handler"),
+    no_std
+)]
 
 //! `crc-fast`
 //! ===========
@@ -140,8 +143,14 @@
 //! - A `#[panic_handler]` (e.g., via the `panic-halt` crate)
 //! - A `#[global_allocator]` if using the `alloc` feature
 
-// Provide a panic handler for no_std builds (always when no_std, even without panic-handler feature, to make cargo check pass)
-#[cfg(all(not(feature = "std"), not(test), not(doctest)))]
+// Provide a panic handler for no_std builds (only when alloc+panic-handler, otherwise std)
+#[cfg(all(
+    feature = "panic-handler",
+    feature = "alloc",
+    not(feature = "std"),
+    not(test),
+    not(doctest)
+))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
@@ -1320,8 +1329,6 @@ mod lib {
     use super::*;
     use crate::test::consts::{TEST_ALL_CONFIGS, TEST_CHECK_STRING};
     use crate::test::enums::AnyCrcTestConfig;
-    use cbindgen::Language::C;
-    use cbindgen::Style::Both;
     use rand::{rng, RngExt};
     use std::fs::{read, write};
 
@@ -1807,68 +1814,6 @@ mod lib {
             digest.update(TEST_CHECK_STRING);
             assert_eq!(digest.finalize(), config.get_check());
         }
-    }
-
-    /// Tests whether the FFI header is up-to-date
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn test_ffi_header() -> Result<(), String> {
-        #[cfg(target_os = "windows")]
-        {
-            // Skip this test on Windows, since CRLF vs LF is a PITA
-            eprintln!("Skipping test on Windows");
-
-            return Ok(());
-        }
-
-        const HEADER: &str = "libcrc_fast.h";
-
-        let crate_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|error| error.to_string())?;
-
-        let mut expected = Vec::new();
-        cbindgen::Builder::new()
-            .with_crate(crate_dir)
-            .with_include_guard("CRC_FAST_H")
-            .with_header("/* crc_fast library C/C++ API - Copyright 2025 Don MacAskill */\n/* This header is auto-generated. Do not edit directly. */\n")
-            // exclude internal implementation functions
-            .exclude_item("crc32_iscsi_impl")
-            .exclude_item("crc32_iso_hdlc_impl")
-            .exclude_item("get_iscsi_target")
-            .exclude_item("get_iso_hdlc_target")
-            .exclude_item("ISO_HDLC_TARGET")
-            .exclude_item("ISCSI_TARGET")
-            .exclude_item("CrcParams")
-            .rename_item("Digest", "CrcFastDigest")
-            .with_style(Both)
-            // generate C header
-            .with_language(C)
-            // with C++ compatibility
-            .with_cpp_compat(true)
-            .generate()
-            .map_err(|error| error.to_string())?
-            .write(&mut expected);
-
-        // Convert the expected bytes to string for pattern replacement, since cbindgen
-        // generates an annoying amount of empty contiguous newlines
-        let header_content = String::from_utf8(expected).map_err(|error| error.to_string())?;
-
-        // Replace excessive newlines (3 or more consecutive newlines) with 2 newlines
-        let regex = regex::Regex::new(r"\n{3,}").map_err(|error| error.to_string())?;
-        let cleaned_content = regex.replace_all(&header_content, "\n\n").to_string();
-
-        // Convert back to bytes
-        expected = cleaned_content.into_bytes();
-
-        let actual = read(HEADER).map_err(|error| error.to_string())?;
-
-        if expected != actual {
-            write(HEADER, expected).map_err(|error| error.to_string())?;
-            return Err(format!(
-                "{HEADER} is not up-to-date, commit the generated file and try again"
-            ));
-        }
-
-        Ok(())
     }
 
     fn get_custom_crc32_reflected() -> CrcParams {

@@ -71,12 +71,10 @@ exn = { version = "0.4.0-rc.1", default-features = false, optional = true }
 cpufeatures = "0.3"
 
 [dev-dependencies]
-cbindgen = "0.29"
 crc = "3.4"
 criterion = "0.8"
 proptest = "1.11"
 rand = "0.10"
-regex = "1.13"
 
 [features]
 # default features
