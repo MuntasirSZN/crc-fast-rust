@@ -73,7 +73,7 @@ pub struct ArchCapabilities {
     pub has_sse41: bool,
     pub has_sse42: bool, // provides native CRC32C instructions for fusion techniques
     pub has_pclmulqdq: bool,
-    pub has_avx2: bool, // required to use vpclmulqdq on 256-bit registers
+    pub has_avx2: bool,     // required to use vpclmulqdq on 256-bit registers
     pub has_avx512vl: bool, // implicitly enables avx512f, has XOR3 operations
     pub has_vpclmulqdq: bool,
 }
@@ -671,7 +671,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
 
@@ -690,7 +690,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: true,
                 has_avx2: false,
-            has_avx512vl: false,  // Missing required dependency
+                has_avx512vl: false,  // Missing required dependency
                 has_vpclmulqdq: true, // This should be impossible in real detection
             };
 
@@ -719,7 +719,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -736,7 +736,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -753,7 +753,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -775,7 +775,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -792,7 +792,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -809,7 +809,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: true,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -826,7 +826,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: true,
                 has_avx2: false,
-            has_avx512vl: true,
+                has_avx512vl: true,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -843,7 +843,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: true,
                 has_avx2: false,
-            has_avx512vl: true,
+                has_avx512vl: true,
                 has_vpclmulqdq: true,
             };
             assert_eq!(
@@ -865,7 +865,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             assert_eq!(
@@ -883,7 +883,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: true,
                 has_avx2: false,
-            has_avx512vl: false, // AVX512 not available on 32-bit x86
+                has_avx512vl: false, // AVX512 not available on 32-bit x86
                 has_vpclmulqdq: false,
             };
             // The test function will return x86_64 tier since it doesn't distinguish architectures
@@ -936,7 +936,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
 
@@ -974,7 +974,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: true,
                 has_avx2: false,
-            has_avx512vl: true,
+                has_avx512vl: true,
                 has_vpclmulqdq: true,
             };
 
@@ -1026,7 +1026,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: false,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: false,
             };
             // Should fall back to software since AES is required for SHA3
@@ -1044,7 +1044,7 @@ mod tests {
                 has_sse42: false,
                 has_pclmulqdq: true,
                 has_avx2: false,
-            has_avx512vl: false,
+                has_avx512vl: false,
                 has_vpclmulqdq: true, // This would be impossible in real detection
             };
             // Should fall back to SSE tier since AVX512VL is required for VPCLMULQDQ
