@@ -21,6 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [lib]
 bench = true
+crate-type = ["cdylib", "rlib"]
 name = "crc_fast"
 
 [[bin]]
