@@ -216,7 +216,10 @@ use digest::DynDigest;
 #[cfg(feature = "alloc")]
 use digest::InvalidBufferSize;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64"),
+    any(feature = "std", feature = "alloc")
+))]
 use crate::feature_detection::get_arch_ops;
 #[cfg(feature = "std")]
 use std::fs::File;
@@ -1353,7 +1356,7 @@ mod lib {
     use crate::test::enums::AnyCrcTestConfig;
     use cbindgen::Language::C;
     use cbindgen::Style::Both;
-    use rand::{rng, Rng};
+    use rand::{rng, RngExt};
     use std::fs::{read, write};
 
     #[test]

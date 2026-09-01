@@ -188,8 +188,8 @@ pub unsafe fn crc32_iscsi_small_fast(mut crc: u32, data: &[u8]) -> u32 {
         crc = _mm_crc32_u8(crc, byte);
     }
 
-    let mut chunks = aligned.chunks_exact(8);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = aligned.as_chunks::<8>();
+    for chunk in chunks {
         crc = mm_crc32_u64(crc, chunk[0]);
         crc = mm_crc32_u64(crc, chunk[1]);
         crc = mm_crc32_u64(crc, chunk[2]);
@@ -200,7 +200,7 @@ pub unsafe fn crc32_iscsi_small_fast(mut crc: u32, data: &[u8]) -> u32 {
         crc = mm_crc32_u64(crc, chunk[7]);
     }
 
-    for &val in chunks.remainder() {
+    for &val in remainder {
         crc = mm_crc32_u64(crc, val);
     }
 
@@ -216,7 +216,7 @@ mod tests {
     use super::*;
     use crate::test::consts::TEST_CHECK_STRING;
     use crc::{Crc, Table};
-    use rand::{rng, Rng};
+    use rand::{rng, RngExt};
 
     const RUST_CRC32_ISCSI: Crc<u32, Table<16>> = Crc::<u32, Table<16>>::new(&crc::CRC_32_ISCSI);
 

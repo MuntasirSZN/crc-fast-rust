@@ -158,8 +158,8 @@ pub unsafe fn crc32_iscsi_small_fast(mut crc: u32, data: &[u8]) -> u32 {
     }
 
     // Process aligned u64s with 8-way unrolling (64 bytes per iteration)
-    let mut chunks = aligned.chunks_exact(8);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = aligned.as_chunks::<8>();
+    for chunk in chunks {
         crc = __crc32cd(crc, chunk[0]);
         crc = __crc32cd(crc, chunk[1]);
         crc = __crc32cd(crc, chunk[2]);
@@ -171,7 +171,7 @@ pub unsafe fn crc32_iscsi_small_fast(mut crc: u32, data: &[u8]) -> u32 {
     }
 
     // Process remaining aligned u64s
-    for &val in chunks.remainder() {
+    for &val in remainder {
         crc = __crc32cd(crc, val);
     }
 
@@ -195,8 +195,8 @@ pub unsafe fn crc32_iso_hdlc_small_fast(mut crc: u32, data: &[u8]) -> u32 {
     }
 
     // Process aligned u64s with 8-way unrolling (64 bytes per iteration)
-    let mut chunks = aligned.chunks_exact(8);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = aligned.as_chunks::<8>();
+    for chunk in chunks {
         crc = __crc32d(crc, chunk[0]);
         crc = __crc32d(crc, chunk[1]);
         crc = __crc32d(crc, chunk[2]);
@@ -208,7 +208,7 @@ pub unsafe fn crc32_iso_hdlc_small_fast(mut crc: u32, data: &[u8]) -> u32 {
     }
 
     // Process remaining aligned u64s
-    for &val in chunks.remainder() {
+    for &val in remainder {
         crc = __crc32d(crc, val);
     }
 
@@ -225,7 +225,7 @@ mod tests {
     use super::*;
     use crate::test::consts::TEST_CHECK_STRING;
     use crc::{Crc, Table};
-    use rand::{rng, Rng};
+    use rand::{rng, RngExt};
 
     const RUST_CRC32_ISO_HDLC: Crc<u32, Table<16>> =
         Crc::<u32, Table<16>>::new(&crc::CRC_32_ISO_HDLC);

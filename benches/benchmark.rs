@@ -3,7 +3,7 @@
 use crc_fast::checksum;
 use crc_fast::CrcAlgorithm;
 use criterion::*;
-use rand::{rng, RngCore};
+use rand::{rng, Rng};
 use std::hint::black_box;
 use std::time::Duration;
 
