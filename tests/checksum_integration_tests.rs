@@ -6,10 +6,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-const CARGO_BIN_NAME: &str = "crc-fast";
-
-/// Build the `checksum` binary once and return its absolute path.
-/// Subsequent calls re-use the existing build (cargo skips rebuild when nothing changed).
+/// Build the `checksum` binary and return its absolute path.
+/// cargo emits the binary path on stdout (last line) when invoked without `--message-format=json`,
+/// and the same path is used internally for `target/debug/...` plus the per-target triple subdir.
 fn checksum_binary() -> PathBuf {
     let output = Command::new("cargo")
         .args(["build", "--quiet", "--features", "cli", "--bin", "checksum"])
@@ -24,19 +23,36 @@ fn checksum_binary() -> PathBuf {
         );
     }
 
-    // target/debug/checksum (or target/<triple>/debug/checksum on cross)
+    // Resolve the binary path. cargo places it in one of:
+    //   target/debug/checksum            (host build)
+    //   target/<triple>/debug/checksum   (cross build, e.g. CI macos x86_64 vs aarch64)
+    // We discover by walking `target/` for the binary named `checksum[.exe]`.
     let exe_suffix = std::env::consts::EXE_SUFFIX;
-    let debug_dir = std::env::var("CARGO_TARGET_DIR")
+    let target_root = std::env::var("CARGO_TARGET_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("target"))
-        .join("debug");
-    let bin = debug_dir.join(format!("checksum{exe_suffix}"));
-    assert!(
-        bin.exists(),
-        "checksum binary not found at {} after cargo build",
-        bin.display()
+        .unwrap_or_else(|_| PathBuf::from("target"));
+    let bin_name = format!("checksum{exe_suffix}");
+
+    let direct = target_root.join("debug").join(&bin_name);
+    if direct.exists() {
+        return direct;
+    }
+
+    // Fallback: walk target/<triple>/debug/{bin_name} (some CI setups)
+    if let Ok(entries) = std::fs::read_dir(&target_root) {
+        for entry in entries.flatten() {
+            let candidate = entry.path().join("debug").join(&bin_name);
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+    }
+
+    panic!(
+        "checksum binary not found in {} (suffix `{}`) after cargo build",
+        target_root.display(),
+        exe_suffix
     );
-    bin
 }
 
 /// Run the prebuilt `checksum` binary with `args` and assert it succeeded.
@@ -89,7 +105,6 @@ fn test_benchmark_flag_parsing() {
     assert!(stdout.contains("Algorithm: CRC-32/ISCSI"));
     assert!(stdout.contains("Throughput:"));
     assert!(stdout.contains("GiB/s"));
-    let _ = CARGO_BIN_NAME;
 }
 
 #[test]
