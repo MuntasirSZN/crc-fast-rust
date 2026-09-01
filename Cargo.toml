@@ -63,11 +63,11 @@ spin = { version = "0.12.3", default-features = false, features = ["mutex", "onc
 
 hashbrown = { version = "0.17.1", optional = true }
 
-# lightweight runtime CPU feature detection (no_std friendly) - replaces std::arch::is_*_feature_detected
-cpufeatures = "0.3"
-
 # context-aware error handling (no_std, alloc) - replaces panic/unwrap, only when alloc available
 exn = { version = "0.4.0-rc.1", default-features = false, optional = true }
+
+[target.'cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+cpufeatures = "0.3"
 
 [dev-dependencies]
 cbindgen = "0.29"

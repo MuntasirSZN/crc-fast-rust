@@ -1,9 +1,6 @@
 // Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
-// Future proofing for no_std support - only no_std when alloc+panic-handler available (needs handler+allocator)
-#![cfg_attr(
-    all(not(feature = "std"), feature = "alloc", feature = "panic-handler"),
-    no_std
-)]
+// Future proofing for no_std support
+#![cfg_attr(not(feature = "std"), no_std)]
 
 //! `crc-fast`
 //! ===========
@@ -143,14 +140,8 @@
 //! - A `#[panic_handler]` (e.g., via the `panic-halt` crate)
 //! - A `#[global_allocator]` if using the `alloc` feature
 
-// Provide a panic handler for no_std builds (only when alloc+panic-handler, otherwise std)
-#[cfg(all(
-    feature = "panic-handler",
-    feature = "alloc",
-    not(feature = "std"),
-    not(test),
-    not(doctest)
-))]
+// Provide a panic handler for no_std builds (always when no_std, even without panic-handler feature, to make cargo check pass)
+#[cfg(all(not(feature = "std"), not(test), not(doctest)))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
