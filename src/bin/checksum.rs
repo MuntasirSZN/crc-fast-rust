@@ -49,6 +49,7 @@ struct BenchmarkResult {
 enum OutputFormat {
     Hex,
     Decimal,
+    Base64,
 }
 
 impl BenchmarkConfig {
@@ -184,13 +185,14 @@ fn generate_random_data(size: usize) -> Result<Vec<u8>, String> {
 }
 
 fn print_usage() {
-    println!("Usage: checksum -a algorithm [-f file] [-s string] [--format hex|decimal]");
+    println!("Usage: checksum -a algorithm [-f file] [-s string] [--format hex|decimal|base64]");
     println!(
         "       checksum -a algorithm -b [--size bytes] [--duration seconds] [-f file] [-s string]"
     );
     println!();
     println!("Example: checksum -a CRC-32/ISCSI -f myfile.txt");
     println!("Example: checksum -a CRC-64/NVME -s 'Hello, world!' --format decimal");
+    println!("Example: checksum -a CRC-64/NVME -f myfile.txt --format base64");
     println!("Example: checksum -a CRC-32/ISCSI -b --size 1048576 --duration 5.0");
     println!();
     println!("Options:");
@@ -198,7 +200,7 @@ fn print_usage() {
     println!("  -f file             Calculate checksum for the specified file");
     println!("  -h, --help          Show this help message");
     println!("  -s string           Calculate checksum for the specified string");
-    println!("  --format hex|decimal Output format (default: hex)");
+    println!("  --format hex|decimal|base64 Output format (default: hex)");
     println!();
     println!("Benchmarking:");
     println!("  -b                  Enable benchmark mode");
@@ -267,9 +269,10 @@ fn parse_args() -> Result<Config, String> {
                 match args[i + 1].as_str() {
                     "hex" => format = OutputFormat::Hex,
                     "decimal" => format = OutputFormat::Decimal,
+                    "base64" => format = OutputFormat::Base64,
                     invalid => {
                         return Err(format!(
-                            "Invalid format '{}'. Use 'hex' or 'decimal'",
+                            "Invalid format '{}'. Use 'hex', 'decimal' or 'base64'",
                             invalid
                         ))
                     }
@@ -346,6 +349,49 @@ fn parse_args() -> Result<Config, String> {
     })
 }
 
+/// Encode bytes as standard Base64 (RFC 4648) with padding.
+fn base64_encode(input: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut output = String::with_capacity(input.len().div_ceil(3) * 4);
+    let mut i = 0;
+    while i + 3 <= input.len() {
+        let b0 = input[i] as u32;
+        let b1 = input[i + 1] as u32;
+        let b2 = input[i + 2] as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        output.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
+        output.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
+        output.push(TABLE[((n >> 6) & 0x3F) as usize] as char);
+        output.push(TABLE[(n & 0x3F) as usize] as char);
+        i += 3;
+    }
+    let rem = input.len() - i;
+    if rem == 1 {
+        let b0 = input[i] as u32;
+        let n = b0 << 16;
+        output.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
+        output.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
+        output.push('=');
+        output.push('=');
+    } else if rem == 2 {
+        let b0 = input[i] as u32;
+        let b1 = input[i + 1] as u32;
+        let n = (b0 << 16) | (b1 << 8);
+        output.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
+        output.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
+        output.push(TABLE[((n >> 6) & 0x3F) as usize] as char);
+        output.push('=');
+    }
+    output
+}
+
+/// Convert a CRC checksum value to big-endian bytes with fixed width.
+fn checksum_to_be_bytes(checksum: u64, width: u8) -> Vec<u8> {
+    let byte_len = (width as usize) / 8;
+    let be_bytes = checksum.to_be_bytes();
+    be_bytes[8 - byte_len..].to_vec()
+}
+
 fn calculate_checksum(config: &Config) -> Result<(), String> {
     let algorithm = CrcAlgorithm::from_str(&config.algorithm)
         .map_err(|_| format!("Invalid algorithm: {}", config.algorithm))?;
@@ -355,17 +401,31 @@ fn calculate_checksum(config: &Config) -> Result<(), String> {
         return run_benchmark(config, benchmark_config, algorithm);
     }
 
-    let checksum = if let Some(ref filename) = config.file {
+    let checksum = if let Some(filename) = &config.file {
         checksum_file(algorithm, filename, None).unwrap()
-    } else if let Some(ref text) = config.string {
+    } else if let Some(text) = &config.string {
         checksum(algorithm, text.as_bytes())
     } else {
         return Err("No input provided for checksum calculation".to_string());
     };
 
+    let width = crc_fast::width_for_algorithm(algorithm);
+    let masked = if width == 64 {
+        checksum
+    } else {
+        checksum & ((1u64 << width) - 1)
+    };
+
     match config.format {
-        OutputFormat::Hex => println!("{:#x?}", checksum),
-        OutputFormat::Decimal => println!("{}", checksum),
+        OutputFormat::Hex => {
+            let hex_digits = (width as usize) / 4;
+            println!("0x{:0width$x}", masked, width = hex_digits);
+        }
+        OutputFormat::Decimal => println!("{}", masked),
+        OutputFormat::Base64 => {
+            let bytes = checksum_to_be_bytes(masked, width);
+            println!("{}", base64_encode(&bytes));
+        }
     }
 
     Ok(())
@@ -377,13 +437,13 @@ fn run_benchmark(
     algorithm: CrcAlgorithm,
 ) -> Result<(), String> {
     // Determine data source and create BenchmarkData
-    let data = if let Some(ref filename) = config.file {
+    let data = if let Some(filename) = &config.file {
         // Validate file exists before benchmarking
         if !std::path::Path::new(filename).exists() {
             return Err(format!("File not found: {}", filename));
         }
         BenchmarkData::File(filename.clone())
-    } else if let Some(ref text) = config.string {
+    } else if let Some(text) = &config.string {
         BenchmarkData::InMemory(text.as_bytes().to_vec())
     } else {
         // Generate random data with specified size or default (1 MiB)
@@ -711,10 +771,76 @@ mod tests {
     fn test_output_format_variants() {
         let hex_format = OutputFormat::Hex;
         let decimal_format = OutputFormat::Decimal;
+        let base64_format = OutputFormat::Base64;
 
-        // Test that both variants can be created and are different
+        // Test that variants can be created and are different
         assert!(matches!(hex_format, OutputFormat::Hex));
         assert!(matches!(decimal_format, OutputFormat::Decimal));
+        assert!(matches!(base64_format, OutputFormat::Base64));
+    }
+
+    #[test]
+    fn test_base64_encode_vectors() {
+        // Empty
+        assert_eq!(base64_encode(&[]), "");
+        // Standard RFC 4648 vectors
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
+        assert_eq!(base64_encode(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+        // Binary vectors relevant for CRC
+        assert_eq!(
+            base64_encode(&[0x0c, 0xac, 0x33, 0xb2, 0x94, 0x6e, 0xeb, 0xed]),
+            "DKwzspRu6+0="
+        );
+        assert_eq!(base64_encode(&[0xcb, 0xf4, 0x39, 0x26]), "y/Q5Jg==");
+        // Incorrect truncation would be rDOylG7r7Q== not DK...
+        assert_ne!(
+            base64_encode(&[0xca, 0xc3, 0x3b, 0x29, 0x46, 0xee, 0xbe, 0xd0]),
+            "DKwzspRu6+0="
+        );
+    }
+
+    #[test]
+    fn test_checksum_to_be_bytes() {
+        assert_eq!(
+            checksum_to_be_bytes(0x0cac33b2946eebed_u64, 64),
+            vec![0x0c, 0xac, 0x33, 0xb2, 0x94, 0x6e, 0xeb, 0xed]
+        );
+        assert_eq!(
+            checksum_to_be_bytes(0xe3069283_u64, 32),
+            vec![0xe3, 0x06, 0x92, 0x83]
+        );
+        assert_eq!(checksum_to_be_bytes(0xbb3d_u64, 16), vec![0xbb, 0x3d]);
+        assert_eq!(
+            checksum_to_be_bytes(0_u64, 32),
+            vec![0x00, 0x00, 0x00, 0x00]
+        );
+        assert_eq!(
+            checksum_to_be_bytes(0x06192a30_u64, 32),
+            vec![0x06, 0x19, 0x2a, 0x30]
+        );
+    }
+
+    #[test]
+    fn test_padded_hex_formatting() {
+        // width 64 should produce 16 hex digits padded
+        let width = 64_u8;
+        let hex_digits = (width as usize) / 4;
+        let masked = 0x0cac33b2946eebed_u64;
+        let formatted = format!("0x{:0width$x}", masked, width = hex_digits);
+        assert_eq!(formatted, "0x0cac33b2946eebed");
+        // width 32 with leading zero
+        let width32 = 32_u8;
+        let hex_digits32 = (width32 as usize) / 4;
+        let masked32 = 0x06192a30_u64;
+        let formatted32 = format!("0x{:0width$x}", masked32, width = hex_digits32);
+        assert_eq!(formatted32, "0x06192a30");
+        // width 16
+        let formatted16 = format!("0x{:0width$x}", 0x0001_u64, width = 4);
+        assert_eq!(formatted16, "0x0001");
     }
 
     #[test]

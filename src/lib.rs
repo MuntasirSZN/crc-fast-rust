@@ -1263,6 +1263,20 @@ fn get_calculator_params(algorithm: CrcAlgorithm) -> (CalculatorFn, CrcParams) {
     }
 }
 
+/// Returns the `CrcParams` for the given algorithm.
+///
+/// This is useful for retrieving metadata such as width, polynomial, etc.
+#[inline]
+pub fn params_for_algorithm(algorithm: CrcAlgorithm) -> CrcParams {
+    get_calculator_params(algorithm).1
+}
+
+/// Returns the CRC width in bits for the given algorithm.
+#[inline]
+pub fn width_for_algorithm(algorithm: CrcAlgorithm) -> u8 {
+    params_for_algorithm(algorithm).width
+}
+
 /// Calculates the CRC-32/ISCSI (commonly called "crc32c" in many, but not all, implementations)
 /// checksum.
 ///
