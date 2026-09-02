@@ -18,9 +18,41 @@ fn main() {
     println!("#![allow(dead_code)]");
     println!();
 
+    generate_crc5_tables();
     generate_crc16_tables();
+    generate_crc31_tables();
     generate_crc32_tables();
     generate_crc64_tables();
+}
+
+fn generate_crc5_tables() {
+    println!("pub mod crc5 {{");
+    println!("    //! CRC-5 lookup tables");
+    println!();
+
+    let algorithms: &[(&str, u32, bool)] = &[("USB", 0x05, true)];
+
+    for (name, poly, reflect) in algorithms {
+        print_table_u32_with_prefix("CRC5", name, 5, *poly, *reflect);
+    }
+
+    println!("}}");
+    println!();
+}
+
+fn generate_crc31_tables() {
+    println!("pub mod crc31 {{");
+    println!("    //! CRC-31 lookup tables");
+    println!();
+
+    let algorithms: &[(&str, u32, bool)] = &[("PHILIPS", 0x04c11db7, false)];
+
+    for (name, poly, reflect) in algorithms {
+        print_table_u32_with_prefix("CRC31", name, 31, *poly, *reflect);
+    }
+
+    println!("}}");
+    println!();
 }
 
 fn generate_crc16_tables() {
@@ -146,9 +178,16 @@ fn print_table_u16(name: &str, width: u8, poly: u16, reflect: bool) {
 }
 
 fn print_table_u32(name: &str, width: u8, poly: u32, reflect: bool) {
+    print_table_u32_with_prefix("CRC32", name, width, poly, reflect);
+}
+
+fn print_table_u32_with_prefix(prefix: &str, name: &str, width: u8, poly: u32, reflect: bool) {
     let table = generate_table_u32(width, poly, reflect);
 
-    println!("    pub static CRC32_{}_TABLE: [[u32; 256]; 16] = [", name);
+    println!(
+        "    pub static {}_{}_TABLE: [[u32; 256]; 16] = [",
+        prefix, name
+    );
     for lane in &table {
         println!("        [");
         for chunk in lane.chunks(4) {

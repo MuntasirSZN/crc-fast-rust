@@ -199,7 +199,13 @@ use spin::{Mutex, Once};
 // Cache key types for custom algorithms
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
+type Crc5Key = (u32, u32, bool, bool, u32, u32);
+#[cfg(feature = "alloc")]
+#[cfg(any(feature = "std", feature = "cache"))]
 type Crc16Key = (u16, u16, bool, bool, u16, u16);
+#[cfg(feature = "alloc")]
+#[cfg(any(feature = "std", feature = "cache"))]
+type Crc31Key = (u32, u32, bool, bool, u32, u32);
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
 type Crc32Key = (u32, u32, bool, bool, u32, u32);
@@ -210,7 +216,13 @@ type Crc64Key = (u64, u64, bool, bool, u64, u64);
 // Cache value types for custom algorithms - stores the generated table
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
+type Crc5CacheValue = &'static [[u32; 256]; 16];
+#[cfg(feature = "alloc")]
+#[cfg(any(feature = "std", feature = "cache"))]
 type Crc16CacheValue = &'static [[u16; 256]; 16];
+#[cfg(feature = "alloc")]
+#[cfg(any(feature = "std", feature = "cache"))]
+type Crc31CacheValue = &'static [[u32; 256]; 16];
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
 type Crc32CacheValue = &'static [[u32; 256]; 16];
@@ -220,7 +232,11 @@ type Crc64CacheValue = &'static [[u64; 256]; 16];
 
 // Global caches for custom algorithms (spin::Once + hashbrown, no_std friendly)
 #[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
+static CUSTOM_CRC5_CACHE: Once<Mutex<HashMap<Crc5Key, Crc5CacheValue>>> = Once::new();
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 static CUSTOM_CRC16_CACHE: Once<Mutex<HashMap<Crc16Key, Crc16CacheValue>>> = Once::new();
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
+static CUSTOM_CRC31_CACHE: Once<Mutex<HashMap<Crc31Key, Crc31CacheValue>>> = Once::new();
 #[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 static CUSTOM_CRC32_CACHE: Once<Mutex<HashMap<Crc32Key, Crc32CacheValue>>> = Once::new();
 #[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
@@ -233,11 +249,127 @@ static CUSTOM_CRC64_CACHE: Once<Mutex<HashMap<Crc64Key, Crc64CacheValue>>> = Onc
 #[allow(unused)]
 pub(crate) fn update(state: u64, data: &[u8], params: &CrcParams) -> u64 {
     match params.width {
+        5 => update_crc5(state as u8, data, params) as u64,
         16 => update_crc16(state as u16, data, params) as u64,
+        31 => update_crc31(state as u32, data, params) as u64,
         32 => update_crc32(state as u32, data, params) as u64,
         64 => update_crc64(state, data, params),
         _ => unsafe { core::hint::unreachable_unchecked() },
     }
+}
+
+// ============================================================================
+// CRC-5 dispatch
+// ============================================================================
+
+fn update_crc5(state: u8, data: &[u8], params: &CrcParams) -> u8 {
+    let (table, refin) = match params.algorithm {
+        CrcAlgorithm::Crc5Usb => (&tables::crc5::CRC5_USB_TABLE, true),
+        CrcAlgorithm::CrcCustom => {
+            return update_crc5_custom(state, data, params);
+        }
+        _ => unsafe { core::hint::unreachable_unchecked() },
+    };
+
+    (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
+}
+
+#[cfg(feature = "alloc")]
+fn update_crc5_custom(state: u8, data: &[u8], params: &CrcParams) -> u8 {
+    extern crate alloc;
+    use alloc::boxed::Box;
+
+    let refin = params.refin;
+
+    #[cfg(any(feature = "std", feature = "cache"))]
+    let table: &'static [[u32; 256]; 16] = {
+        let key: Crc5Key = (
+            params.poly as u32,
+            params.init as u32,
+            params.refin,
+            params.refout,
+            params.xorout as u32,
+            params.check as u32,
+        );
+
+        let cache = CUSTOM_CRC5_CACHE.call_once(|| Mutex::new(HashMap::new()));
+        let mut cache_guard = cache.lock();
+
+        cache_guard.entry(key).or_insert_with(|| {
+            let table = generate_table_u32(params.width, params.poly as u32, refin);
+            Box::leak(Box::new(table))
+        })
+    };
+
+    #[cfg(not(any(feature = "std", feature = "cache")))]
+    let table: &'static [[u32; 256]; 16] = {
+        let table = generate_table_u32(params.width, params.poly as u32, refin);
+        Box::leak(Box::new(table))
+    };
+
+    (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
+}
+
+#[cfg(not(feature = "alloc"))]
+fn update_crc5_custom(_state: u8, _data: &[u8], _params: &CrcParams) -> u8 {
+    _state
+}
+
+// ============================================================================
+// CRC-31 dispatch
+// ============================================================================
+
+fn update_crc31(state: u32, data: &[u8], params: &CrcParams) -> u32 {
+    let (table, refin) = match params.algorithm {
+        CrcAlgorithm::Crc31Philips => (&tables::crc31::CRC31_PHILIPS_TABLE, false),
+        CrcAlgorithm::CrcCustom => {
+            return update_crc31_custom(state, data, params);
+        }
+        _ => unsafe { core::hint::unreachable_unchecked() },
+    };
+
+    native_update_u32(state, table, refin, data) & 0x7fffffff
+}
+
+#[cfg(feature = "alloc")]
+fn update_crc31_custom(state: u32, data: &[u8], params: &CrcParams) -> u32 {
+    extern crate alloc;
+    use alloc::boxed::Box;
+
+    let refin = params.refin;
+
+    #[cfg(any(feature = "std", feature = "cache"))]
+    let table: &'static [[u32; 256]; 16] = {
+        let key: Crc31Key = (
+            params.poly as u32,
+            params.init as u32,
+            params.refin,
+            params.refout,
+            params.xorout as u32,
+            params.check as u32,
+        );
+
+        let cache = CUSTOM_CRC31_CACHE.call_once(|| Mutex::new(HashMap::new()));
+        let mut cache_guard = cache.lock();
+
+        cache_guard.entry(key).or_insert_with(|| {
+            let table = generate_table_u32(params.width, params.poly as u32, refin);
+            Box::leak(Box::new(table))
+        })
+    };
+
+    #[cfg(not(any(feature = "std", feature = "cache")))]
+    let table: &'static [[u32; 256]; 16] = {
+        let table = generate_table_u32(params.width, params.poly as u32, refin);
+        Box::leak(Box::new(table))
+    };
+
+    native_update_u32(state, table, refin, data) & 0x7fffffff
+}
+
+#[cfg(not(feature = "alloc"))]
+fn update_crc31_custom(_state: u32, _data: &[u8], _params: &CrcParams) -> u32 {
+    _state
 }
 
 // ============================================================================

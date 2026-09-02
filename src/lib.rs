@@ -16,7 +16,7 @@
 //! ===========
 //!
 //! Hardware-accelerated CRC calculation for
-//! [all known CRC-32 and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm)
+//! [all known CRC-5, CRC-16, CRC-31, CRC-32 and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm)
 //! using SIMD intrinsics which can exceed 100GiB/s for CRC-32 and 50GiB/s for CRC-64 on modern
 //! systems.
 //!
@@ -206,6 +206,9 @@ use crate::crc16::consts::{
     CRC16_USB, CRC16_XMODEM,
 };
 
+use crate::crc31::consts::CRC31_PHILIPS;
+use crate::crc5::consts::CRC5_USB;
+
 use crate::crc32::consts::{
     CRC32_AIXM, CRC32_AUTOSAR, CRC32_BASE91_D, CRC32_BZIP2, CRC32_CD_ROM_EDC, CRC32_CKSUM,
     CRC32_ISCSI, CRC32_ISO_HDLC, CRC32_JAMCRC, CRC32_MEF, CRC32_MPEG_2, CRC32_XFER,
@@ -248,7 +251,9 @@ mod cache;
 mod combine;
 mod consts;
 mod crc16;
+mod crc31;
 mod crc32;
+mod crc5;
 mod crc64;
 mod enums;
 pub mod error;
@@ -261,10 +266,10 @@ mod tables;
 mod test;
 mod traits;
 
-/// Supported CRC-16, CRC-32, and CRC-64 variants
+/// Supported CRC-5, CRC-16, CRC-31, CRC-32, and CRC-64 variants
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CrcAlgorithm {
-    /// Generic custom CRC variant that works with any supported width (16, 32, 64).
+    /// Generic custom CRC variant that works with any supported width (5, 16, 31, 32, 64).
     /// The actual width is determined by the `width` field in `CrcParams`.
     CrcCustom,
     Crc16Arc,
@@ -298,6 +303,8 @@ pub enum CrcAlgorithm {
     Crc16Umts,
     Crc16Usb,
     Crc16Xmodem,
+    Crc5Usb,
+    Crc31Philips,
     Crc32Aixm,
     Crc32Autosar,
     Crc32Base91D,
@@ -508,7 +515,7 @@ impl DynDigest for Digest {
 
     #[inline(always)]
     fn output_size(&self) -> usize {
-        self.params.width as usize / 8
+        (self.params.width as usize).div_ceil(8)
     }
 
     fn box_clone(&self) -> Box<dyn DynDigest> {
@@ -834,6 +841,12 @@ pub fn checksum(algorithm: CrcAlgorithm, buf: &[u8]) -> u64 {
         }
         CrcAlgorithm::Crc16Xmodem => {
             Calculator::calculate(CRC16_XMODEM.init, buf, &CRC16_XMODEM) ^ CRC16_XMODEM.xorout
+        }
+        CrcAlgorithm::Crc5Usb => {
+            Calculator::calculate(CRC5_USB.init, buf, &CRC5_USB) ^ CRC5_USB.xorout
+        }
+        CrcAlgorithm::Crc31Philips => {
+            Calculator::calculate(CRC31_PHILIPS.init, buf, &CRC31_PHILIPS) ^ CRC31_PHILIPS.xorout
         }
         CrcAlgorithm::Crc32Aixm => {
             Calculator::calculate(CRC32_AIXM.init, buf, &CRC32_AIXM) ^ CRC32_AIXM.xorout
@@ -1240,6 +1253,8 @@ fn get_calculator_params(algorithm: CrcAlgorithm) -> (CalculatorFn, CrcParams) {
         CrcAlgorithm::Crc16Umts => (Calculator::calculate as CalculatorFn, CRC16_UMTS),
         CrcAlgorithm::Crc16Usb => (Calculator::calculate as CalculatorFn, CRC16_USB),
         CrcAlgorithm::Crc16Xmodem => (Calculator::calculate as CalculatorFn, CRC16_XMODEM),
+        CrcAlgorithm::Crc5Usb => (Calculator::calculate as CalculatorFn, CRC5_USB),
+        CrcAlgorithm::Crc31Philips => (Calculator::calculate as CalculatorFn, CRC31_PHILIPS),
         CrcAlgorithm::Crc32Aixm => (Calculator::calculate as CalculatorFn, CRC32_AIXM),
         CrcAlgorithm::Crc32Autosar => (Calculator::calculate as CalculatorFn, CRC32_AUTOSAR),
         CrcAlgorithm::Crc32Base91D => (Calculator::calculate as CalculatorFn, CRC32_BASE91_D),

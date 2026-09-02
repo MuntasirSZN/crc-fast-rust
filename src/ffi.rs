@@ -162,6 +162,8 @@ pub enum CrcFastAlgorithm {
     Crc16Umts,
     Crc16Usb,
     Crc16Xmodem,
+    Crc5Usb,
+    Crc31Philips,
     Crc32Aixm,
     Crc32Autosar,
     Crc32Base91D,
@@ -218,6 +220,8 @@ impl From<CrcFastAlgorithm> for CrcAlgorithm {
             CrcFastAlgorithm::Crc16Umts => CrcAlgorithm::Crc16Umts,
             CrcFastAlgorithm::Crc16Usb => CrcAlgorithm::Crc16Usb,
             CrcFastAlgorithm::Crc16Xmodem => CrcAlgorithm::Crc16Xmodem,
+            CrcFastAlgorithm::Crc5Usb => CrcAlgorithm::Crc5Usb,
+            CrcFastAlgorithm::Crc31Philips => CrcAlgorithm::Crc31Philips,
             CrcFastAlgorithm::Crc32Aixm => CrcAlgorithm::Crc32Aixm,
             CrcFastAlgorithm::Crc32Autosar => CrcAlgorithm::Crc32Autosar,
             CrcFastAlgorithm::Crc32Base91D => CrcAlgorithm::Crc32Base91D,
@@ -310,9 +314,22 @@ fn try_params_from_ffi(value: &CrcFastParams) -> Option<CrcParams> {
         _ => return None, // Unsupported key count
     };
 
-    // For reflected CRC-16, bit-reverse the init value for the SIMD algorithm
-    let init_algorithm = if value.width == 16 && value.refin {
-        (value.init as u16).reverse_bits() as u64
+    // For reflected CRCs, bit-reverse the init value for the SIMD algorithm
+    let init_algorithm = if value.refin {
+        match value.width {
+            5 => {
+                let mut rev = 0u8;
+                let init_u8 = value.init as u8;
+                for i in 0..5 {
+                    if (init_u8 >> i) & 1 == 1 {
+                        rev |= 1 << (4 - i);
+                    }
+                }
+                rev as u64
+            }
+            16 => (value.init as u16).reverse_bits() as u64,
+            _ => value.init,
+        }
     } else {
         value.init
     };
@@ -380,6 +397,8 @@ impl From<CrcParams> for CrcFastParams {
                 CrcAlgorithm::Crc16Umts => CrcFastAlgorithm::Crc16Umts,
                 CrcAlgorithm::Crc16Usb => CrcFastAlgorithm::Crc16Usb,
                 CrcAlgorithm::Crc16Xmodem => CrcFastAlgorithm::Crc16Xmodem,
+                CrcAlgorithm::Crc5Usb => CrcFastAlgorithm::Crc5Usb,
+                CrcAlgorithm::Crc31Philips => CrcFastAlgorithm::Crc31Philips,
                 CrcAlgorithm::Crc32Aixm => CrcFastAlgorithm::Crc32Aixm,
                 CrcAlgorithm::Crc32Autosar => CrcFastAlgorithm::Crc32Autosar,
                 CrcAlgorithm::Crc32Base91D => CrcFastAlgorithm::Crc32Base91D,

@@ -40,6 +40,10 @@ pub const NAME_CRC16_USB: &str = "CRC-16/USB";
 pub const NAME_CRC16_X25: &str = "CRC-16/X-25";
 pub const NAME_CRC16_XMODEM: &str = "CRC-16/XMODEM";
 
+pub const NAME_CRC5_USB: &str = "CRC-5/USB";
+
+pub const NAME_CRC31_PHILIPS: &str = "CRC-31/PHILIPS";
+
 pub const NAME_CRC32_AIXM: &str = "CRC-32/AIXM";
 pub const NAME_CRC32_AUTOSAR: &str = "CRC-32/AUTOSAR";
 pub const NAME_CRC32_BASE91_D: &str = "CRC-32/BASE91-D";

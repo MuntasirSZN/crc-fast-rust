@@ -2,7 +2,7 @@
 name = "crc-fast"
 version = "1.10.0"
 edition = "2021"
-description = "World's fastest generic CRC16, CRC32, and CRC64 calculator using SIMD. Supplies a C-compatible shared library for use in other languages."
+description = "World's fastest generic CRC5, CRC16, CRC31, CRC32, and CRC64 calculator using SIMD. Supplies a C-compatible shared library for use in other languages."
 readme = "README.md"
 repository = "https://github.com/awesomized/crc-fast-rust"
 license = "(MIT OR Apache-2.0) AND Zlib"

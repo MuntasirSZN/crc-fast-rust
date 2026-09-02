@@ -8,7 +8,7 @@
 
 use core::fmt;
 
-/// CRC width not supported (only 16, 32, 64 are currently accelerated).
+/// CRC width not supported (only 5, 16, 31, 32, 64 are currently accelerated).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UnsupportedWidth(pub u8);
 

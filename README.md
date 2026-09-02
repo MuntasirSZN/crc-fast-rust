@@ -6,7 +6,7 @@
 [![Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/crc-fast)
 
 World's fastest generic CRC calculator for
-[all known CRC-16, CRC-32, and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm), as well as bring-your-own
+[all known CRC-5, CRC-16, CRC-31, CRC-32, and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm), as well as bring-your-own
 custom parameters, using SIMD intrinsics,
 which can exceed [100GiB/s](#performance) on modern systems.
 

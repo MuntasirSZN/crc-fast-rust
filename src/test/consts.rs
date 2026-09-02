@@ -168,6 +168,12 @@ pub(crate) const RUST_CRC16_USB: crc::Crc<u16, Table<16>> =
 pub(crate) const RUST_CRC16_XMODEM: crc::Crc<u16, Table<16>> =
     crc::Crc::<u16, Table<16>>::new(&crc::CRC_16_XMODEM);
 
+pub(crate) const RUST_CRC5_USB: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_5_USB);
+
+pub(crate) const RUST_CRC31_PHILIPS: crc::Crc<u32, Table<16>> =
+    crc::Crc::<u32, Table<16>>::new(&crc::CRC_31_PHILIPS);
+
 pub(crate) const RUST_CRC64_ECMA_182: crc::Crc<u64, Table<16>> =
     crc::Crc::<u64, Table<16>>::new(&crc::CRC_64_ECMA_182);
 

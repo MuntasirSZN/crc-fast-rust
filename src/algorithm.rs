@@ -19,7 +19,7 @@ use crate::consts::CRC_CHUNK_SIZE;
 use crate::enums::{DataChunkProcessor, Reflector};
 use crate::structs::CrcState;
 use crate::traits::{ArchOps, EnhancedCrcWidth};
-use crate::{crc16, crc32, crc64, CrcParams};
+use crate::{crc16, crc31, crc32, crc5, crc64, CrcParams};
 
 /// Extract keys from CrcParams using safe accessor methods
 /// This ensures bounds checking and future compatibility
@@ -123,7 +123,9 @@ where
 {
     match strategy {
         DataChunkProcessor::From0To15 => match W::WIDTH {
+            5 => crc5::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
             16 => crc16::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
+            31 => crc31::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
             32 => crc32::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
             64 => crc64::algorithm::process_0_to_15::<T, W>(data, state, &reflector, keys, ops),
             _ => unsafe { core::hint::unreachable_unchecked() },

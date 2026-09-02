@@ -36,6 +36,15 @@ pub struct Algorithm<W> {
     pub residue: W,
 }
 
+/// CRC-5 width implementation
+#[derive(Clone, Copy)]
+pub struct Width5;
+
+impl CrcWidth for Width5 {
+    const WIDTH: u32 = 5;
+    type Value = u8;
+}
+
 /// CRC-16 width implementation
 #[derive(Clone, Copy)]
 pub struct Width16;
@@ -43,6 +52,15 @@ pub struct Width16;
 impl CrcWidth for Width16 {
     const WIDTH: u32 = 16;
     type Value = u16;
+}
+
+/// CRC-31 width implementation
+#[derive(Clone, Copy)]
+pub struct Width31;
+
+impl CrcWidth for Width31 {
+    const WIDTH: u32 = 31;
+    type Value = u32;
 }
 
 /// CRC-32 width implementation
@@ -93,14 +111,27 @@ impl CrcParams {
         xorout: u64,
         check: u64,
     ) -> exn::Result<Self, crate::error::UnsupportedWidth> {
-        if width != 16 && width != 32 && width != 64 {
+        if width != 5 && width != 16 && width != 31 && width != 32 && width != 64 {
             exn::bail!(crate::error::UnsupportedWidth(width));
         }
         let keys_array = cache::get_or_generate_keys(width, poly, reflected);
         let keys = crate::CrcKeysStorage::from_keys_fold_256(keys_array);
 
-        let init_algorithm = if width == 16 && reflected {
-            (init as u16).reverse_bits() as u64
+        let init_algorithm = if reflected {
+            match width {
+                5 => {
+                    let mut rev = 0u8;
+                    let init_u8 = init as u8;
+                    for i in 0..5 {
+                        if (init_u8 >> i) & 1 == 1 {
+                            rev |= 1 << (4 - i);
+                        }
+                    }
+                    rev as u64
+                }
+                16 => (init as u16).reverse_bits() as u64,
+                _ => init,
+            }
         } else {
             init
         };
@@ -144,12 +175,25 @@ impl CrcParams {
         check: u64,
     ) -> Self {
         // Validate width is supported (panic-free: fallback to try_new, and on error create dummy)
-        if width != 16 && width != 32 && width != 64 {
+        if width != 5 && width != 16 && width != 31 && width != 32 && width != 64 {
             // Keep backwards compat but panic-free: create dummy with zero keys
             // Caller should use `try_new` to get proper `Exn` error.
             let keys = crate::CrcKeysStorage::from_keys_fold_256([0; 23]);
-            let init_algorithm = if width == 16 && reflected {
-                (init as u16).reverse_bits() as u64
+            let init_algorithm = if reflected {
+                match width {
+                    5 => {
+                        let mut rev = 0u8;
+                        let init_u8 = init as u8;
+                        for i in 0..5 {
+                            if (init_u8 >> i) & 1 == 1 {
+                                rev |= 1 << (4 - i);
+                            }
+                        }
+                        rev as u64
+                    }
+                    16 => (init as u16).reverse_bits() as u64,
+                    _ => init,
+                }
             } else {
                 init
             };
@@ -170,9 +214,22 @@ impl CrcParams {
         let keys_array = cache::get_or_generate_keys(width, poly, reflected);
         let keys = crate::CrcKeysStorage::from_keys_fold_256(keys_array);
 
-        // For reflected CRC-16, bit-reverse the init value for the SIMD algorithm
-        let init_algorithm = if width == 16 && reflected {
-            (init as u16).reverse_bits() as u64
+        // For reflected CRCs, bit-reverse the init value for the SIMD algorithm
+        let init_algorithm = if reflected {
+            match width {
+                5 => {
+                    let mut rev = 0u8;
+                    let init_u8 = init as u8;
+                    for i in 0..5 {
+                        if (init_u8 >> i) & 1 == 1 {
+                            rev |= 1 << (4 - i);
+                        }
+                    }
+                    rev as u64
+                }
+                16 => (init as u16).reverse_bits() as u64,
+                _ => init,
+            }
         } else {
             init
         };

@@ -387,7 +387,7 @@ fn base64_encode(input: &[u8]) -> String {
 
 /// Convert a CRC checksum value to big-endian bytes with fixed width.
 fn checksum_to_be_bytes(checksum: u64, width: u8) -> Vec<u8> {
-    let byte_len = (width as usize) / 8;
+    let byte_len = (width as usize).div_ceil(8);
     let be_bytes = checksum.to_be_bytes();
     be_bytes[8 - byte_len..].to_vec()
 }
@@ -418,7 +418,7 @@ fn calculate_checksum(config: &Config) -> Result<(), String> {
 
     match config.format {
         OutputFormat::Hex => {
-            let hex_digits = (width as usize) / 4;
+            let hex_digits = (width as usize).div_ceil(4);
             println!("0x{:0width$x}", masked, width = hex_digits);
         }
         OutputFormat::Decimal => println!("{}", masked),
