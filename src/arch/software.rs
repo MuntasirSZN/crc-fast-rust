@@ -271,7 +271,13 @@ fn update_crc5(state: u8, data: &[u8], params: &CrcParams) -> u8 {
         _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
-    (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
+    if refin {
+        (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
+    } else {
+        let scaled = ((state as u32) & 0x1f) << 27;
+        let res = native_update_u32(scaled, table, refin, data);
+        ((res >> 27) & 0x1f) as u8
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -307,7 +313,13 @@ fn update_crc5_custom(state: u8, data: &[u8], params: &CrcParams) -> u8 {
         Box::leak(Box::new(table))
     };
 
-    (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
+    if refin {
+        (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
+    } else {
+        let scaled = ((state as u32) & 0x1f) << 27;
+        let res = native_update_u32(scaled, table, refin, data);
+        ((res >> 27) & 0x1f) as u8
+    }
 }
 
 #[cfg(not(feature = "alloc"))]
@@ -328,7 +340,14 @@ fn update_crc31(state: u32, data: &[u8], params: &CrcParams) -> u32 {
         _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
-    native_update_u32(state, table, refin, data) & 0x7fffffff
+    if refin {
+        native_update_u32(state, table, refin, data) & 0x7fffffff
+    } else {
+        // Forward: scale to 32-bit left-aligned
+        let scaled = (state & 0x7fffffff) << 1;
+        let res = native_update_u32(scaled, table, refin, data);
+        (res >> 1) & 0x7fffffff
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -364,7 +383,13 @@ fn update_crc31_custom(state: u32, data: &[u8], params: &CrcParams) -> u32 {
         Box::leak(Box::new(table))
     };
 
-    native_update_u32(state, table, refin, data) & 0x7fffffff
+    if refin {
+        native_update_u32(state, table, refin, data) & 0x7fffffff
+    } else {
+        let scaled = (state & 0x7fffffff) << 1;
+        let res = native_update_u32(scaled, table, refin, data);
+        (res >> 1) & 0x7fffffff
+    }
 }
 
 #[cfg(not(feature = "alloc"))]
