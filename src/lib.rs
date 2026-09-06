@@ -2139,6 +2139,7 @@ mod lib {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_checksum_file_missing_returns_err() {
         let missing = "/definitely/not/here/crc-fast-missing.txt";
         assert!(checksum_file(CrcAlgorithm::Crc32IsoHdlc, missing, None).is_err());
@@ -2147,6 +2148,7 @@ mod lib {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_checksum_file_custom_chunk_size_matches() {
         let file_path = std::env::current_dir()
             .expect("missing working dir")

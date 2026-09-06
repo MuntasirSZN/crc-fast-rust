@@ -6,6 +6,28 @@
 //! Run with: `cargo run --bin generate_tables > src/tables.rs`
 
 use crc_fast::arch::software::{generate_table_u16, generate_table_u32, generate_table_u64};
+use std::fmt::LowerHex;
+
+/// Prints the 16 lanes of a lookup table; shared by the u16/u32/u64 printers
+/// below, which differ only in chunking and hex width.
+fn print_lanes<T: LowerHex>(table: &[[T; 256]; 16], chunk: usize, hex_width: usize) {
+    for lane in table {
+        println!("        [");
+        for chunk in lane.chunks(chunk) {
+            print!("            ");
+            for (i, val) in chunk.iter().enumerate() {
+                print!("0x{:0width$x}", val, width = hex_width);
+                if i < chunk.len() - 1 {
+                    print!(", ");
+                }
+            }
+            println!(",");
+        }
+        println!("        ],");
+    }
+    println!("    ];");
+    println!();
+}
 
 fn main() {
     println!("// Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.");
@@ -200,22 +222,7 @@ fn print_table_u16(name: &str, width: u8, poly: u16, reflect: bool) {
     let table = generate_table_u16(width, poly, reflect);
 
     println!("    pub static CRC16_{}_TABLE: [[u16; 256]; 16] = [", name);
-    for lane in &table {
-        println!("        [");
-        for chunk in lane.chunks(8) {
-            print!("            ");
-            for (i, val) in chunk.iter().enumerate() {
-                print!("0x{:04x}", val);
-                if i < chunk.len() - 1 {
-                    print!(", ");
-                }
-            }
-            println!(",");
-        }
-        println!("        ],");
-    }
-    println!("    ];");
-    println!();
+    print_lanes(&table, 8, 4);
 }
 
 fn print_table_u32(name: &str, width: u8, poly: u32, reflect: bool) {
@@ -229,42 +236,12 @@ fn print_table_u32_with_prefix(prefix: &str, name: &str, width: u8, poly: u32, r
         "    pub static {}_{}_TABLE: [[u32; 256]; 16] = [",
         prefix, name
     );
-    for lane in &table {
-        println!("        [");
-        for chunk in lane.chunks(4) {
-            print!("            ");
-            for (i, val) in chunk.iter().enumerate() {
-                print!("0x{:08x}", val);
-                if i < chunk.len() - 1 {
-                    print!(", ");
-                }
-            }
-            println!(",");
-        }
-        println!("        ],");
-    }
-    println!("    ];");
-    println!();
+    print_lanes(&table, 4, 8);
 }
 
 fn print_table_u64(name: &str, width: u8, poly: u64, reflect: bool) {
     let table = generate_table_u64(width, poly, reflect);
 
     println!("    pub static CRC64_{}_TABLE: [[u64; 256]; 16] = [", name);
-    for lane in &table {
-        println!("        [");
-        for chunk in lane.chunks(2) {
-            print!("            ");
-            for (i, val) in chunk.iter().enumerate() {
-                print!("0x{:016x}", val);
-                if i < chunk.len() - 1 {
-                    print!(", ");
-                }
-            }
-            println!(",");
-        }
-        println!("        ],");
-    }
-    println!("    ];");
-    println!();
+    print_lanes(&table, 2, 16);
 }

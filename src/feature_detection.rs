@@ -359,6 +359,23 @@ fn create_x86_sse_pclmulqdq_ops() -> ArchOpsInstance {
     use crate::arch::x86::sse::X86SsePclmulqdqOps;
     ArchOpsInstance::X86SsePclmulqdq(X86SsePclmulqdqOps)
 }
+
+/// All-false capabilities for tests; per-test overrides use struct update syntax
+/// (`ArchCapabilities { has_aes: true, ..CAPS_NONE }`) instead of repeating
+/// all nine fields.
+#[cfg(test)]
+const CAPS_NONE: ArchCapabilities = ArchCapabilities {
+    has_aes: false,
+    has_crc: false,
+    has_sha3: false,
+    has_sse41: false,
+    has_sse42: false,
+    has_pclmulqdq: false,
+    has_avx2: false,
+    has_avx512vl: false,
+    has_vpclmulqdq: false,
+};
+
 /// Test-specific tier selection that works across all architectures for comprehensive testing
 #[cfg(test)]
 pub fn select_performance_tier_for_test(capabilities: &ArchCapabilities) -> PerformanceTier {
@@ -406,14 +423,8 @@ mod tests {
         // Test SHA3 + AES (highest tier) - NEON is implicit with AES
         let capabilities_sha3 = ArchCapabilities {
             has_aes: true,
-            has_crc: false,
             has_sha3: true,
-            has_sse41: false,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_sha3),
@@ -423,14 +434,7 @@ mod tests {
         // Test AES only (baseline tier) - NEON is implicit with AES
         let capabilities_aes = ArchCapabilities {
             has_aes: true,
-            has_crc: false,
-            has_sha3: false,
-            has_sse41: false,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_aes),
@@ -438,17 +442,7 @@ mod tests {
         );
 
         // Test missing AES (should fall back to software)
-        let capabilities_no_aes = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
-            has_sse41: false,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
-        };
+        let capabilities_no_aes = CAPS_NONE;
         assert_eq!(
             select_performance_tier_for_test(&capabilities_no_aes),
             PerformanceTier::SoftwareTable
@@ -464,14 +458,7 @@ mod tests {
         // Create test capabilities with AES support (NEON is implicit)
         let capabilities_with_aes = ArchCapabilities {
             has_aes: true,
-            has_crc: false,
-            has_sha3: false,
-            has_sse41: false,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
 
         // AES support means we have PMULL instructions available for CRC calculations
@@ -480,14 +467,8 @@ mod tests {
         // SHA3 requires AES to be available first
         let capabilities_with_sha3 = ArchCapabilities {
             has_aes: true,
-            has_crc: false,
             has_sha3: true,
-            has_sse41: false,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
 
         assert!(capabilities_with_sha3.has_aes);
@@ -501,15 +482,11 @@ mod tests {
 
         // Test VPCLMULQDQ + AVX512 (highest tier)
         let capabilities_vpclmulqdq = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
             has_pclmulqdq: true,
-            has_avx2: false,
             has_avx512vl: true,
             has_vpclmulqdq: true,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_vpclmulqdq),
@@ -518,15 +495,10 @@ mod tests {
 
         // Test AVX512 + PCLMULQDQ (mid-tier)
         let capabilities_avx512 = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
             has_pclmulqdq: true,
-            has_avx2: false,
             has_avx512vl: true,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_avx512),
@@ -535,15 +507,9 @@ mod tests {
 
         // Test SSE + PCLMULQDQ (baseline tier)
         let capabilities_sse = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
             has_pclmulqdq: true,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_sse),
@@ -552,15 +518,8 @@ mod tests {
 
         // Test missing PCLMULQDQ (should fall back to software)
         let capabilities_no_pclmul = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_no_pclmul),
@@ -575,15 +534,9 @@ mod tests {
 
         // Test SSE + PCLMULQDQ (only available tier for x86)
         let capabilities_sse = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
             has_pclmulqdq: true,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_sse),
@@ -593,15 +546,9 @@ mod tests {
         // For x86 32-bit testing, we need a special case since AVX512VL indicates x86_64
         // Create capabilities without AVX512VL to simulate x86 32-bit
         let capabilities_x86_sse = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
             has_pclmulqdq: true,
-            has_avx2: false,
-            has_avx512vl: false, // No AVX512 on 32-bit x86
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         // This should select x86_64 tier since we're testing the general case
         assert_eq!(
@@ -611,15 +558,8 @@ mod tests {
 
         // Test missing PCLMULQDQ (should fall back to software)
         let capabilities_no_pclmul = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            ..CAPS_NONE
         };
         assert_eq!(
             select_performance_tier_for_test(&capabilities_no_pclmul),
@@ -636,15 +576,11 @@ mod tests {
 
         // Test feature dependencies are enforced
         let capabilities_full = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
             has_sse41: true,
-            has_sse42: false,
             has_pclmulqdq: true,
-            has_avx2: false,
             has_avx512vl: true,
             has_vpclmulqdq: true,
+            ..CAPS_NONE
         };
 
         // All x86 features should be available when hierarchy is satisfied
@@ -664,15 +600,8 @@ mod tests {
 
             // SHA3 without AES should not be possible
             let invalid_sha3_caps = ArchCapabilities {
-                has_aes: false, // Missing required dependency
-                has_crc: false,
-                has_sha3: true, // This should be impossible in real detection
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
+                has_sha3: true,
+                ..CAPS_NONE
             };
 
             // Should fall back to software since AES is required for SHA3
@@ -683,15 +612,10 @@ mod tests {
 
             // VPCLMULQDQ without AVX512VL should not be possible
             let invalid_vpclmul_caps = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
                 has_pclmulqdq: true,
-                has_avx2: false,
-                has_avx512vl: false,  // Missing required dependency
-                has_vpclmulqdq: true, // This should be impossible in real detection
+                has_vpclmulqdq: true,
+                ..CAPS_NONE
             };
 
             // Should fall back to SSE tier since AVX512VL is required for VPCLMULQDQ
@@ -711,17 +635,7 @@ mod tests {
             // Test all possible AArch64 capability combinations
 
             // No features - software fallback
-            let no_features = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
-            };
+            let no_features = CAPS_NONE;
             assert_eq!(
                 select_performance_tier_for_test(&no_features),
                 PerformanceTier::SoftwareTable
@@ -730,14 +644,7 @@ mod tests {
             // AES only - baseline AArch64 tier
             let aes_only = ArchCapabilities {
                 has_aes: true,
-                has_crc: false,
-                has_sha3: false,
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
+                ..CAPS_NONE
             };
             assert_eq!(
                 select_performance_tier_for_test(&aes_only),
@@ -747,14 +654,8 @@ mod tests {
             // AES + SHA3 - highest AArch64 tier
             let aes_sha3 = ArchCapabilities {
                 has_aes: true,
-                has_crc: false,
                 has_sha3: true,
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
+                ..CAPS_NONE
             };
             assert_eq!(
                 select_performance_tier_for_test(&aes_sha3),
@@ -767,17 +668,7 @@ mod tests {
             // Test all possible x86_64 capability combinations
 
             // No features - software fallback
-            let no_features = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
-            };
+            let no_features = CAPS_NONE;
             assert_eq!(
                 select_performance_tier_for_test(&no_features),
                 PerformanceTier::SoftwareTable
@@ -785,15 +676,8 @@ mod tests {
 
             // SSE4.1 only - software fallback (PCLMULQDQ required)
             let sse_only = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
+                ..CAPS_NONE
             };
             assert_eq!(
                 select_performance_tier_for_test(&sse_only),
@@ -802,15 +686,9 @@ mod tests {
 
             // SSE4.1 + PCLMULQDQ - baseline x86_64 tier
             let sse_pclmul = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
                 has_pclmulqdq: true,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
+                ..CAPS_NONE
             };
             assert_eq!(
                 select_performance_tier_for_test(&sse_pclmul),
@@ -819,15 +697,10 @@ mod tests {
 
             // SSE4.1 + PCLMULQDQ + AVX512VL - mid-tier
             let avx512_pclmul_new_rust = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
                 has_pclmulqdq: true,
-                has_avx2: false,
                 has_avx512vl: true,
-                has_vpclmulqdq: false,
+                ..CAPS_NONE
             };
             assert_eq!(
                 select_performance_tier_for_test(&avx512_pclmul_new_rust),
@@ -836,15 +709,11 @@ mod tests {
 
             // All features - highest tier
             let all_features_new_rust = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
                 has_pclmulqdq: true,
-                has_avx2: false,
                 has_avx512vl: true,
                 has_vpclmulqdq: true,
+                ..CAPS_NONE
             };
             assert_eq!(
                 select_performance_tier_for_test(&all_features_new_rust),
@@ -857,17 +726,7 @@ mod tests {
             // Test x86 (32-bit) capability combinations
 
             // No features - software fallback
-            let no_features = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
-            };
+            let no_features = CAPS_NONE;
             assert_eq!(
                 select_performance_tier_for_test(&no_features),
                 PerformanceTier::SoftwareTable
@@ -876,15 +735,9 @@ mod tests {
             // SSE4.1 + PCLMULQDQ - for x86 32-bit testing, we expect x86_64 tier in our test function
             // since the test function doesn't distinguish between x86 and x86_64 architectures
             let sse_pclmul = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
                 has_pclmulqdq: true,
-                has_avx2: false,
-                has_avx512vl: false, // AVX512 not available on 32-bit x86
-                has_vpclmulqdq: false,
+                ..CAPS_NONE
             };
             // The test function will return x86_64 tier since it doesn't distinguish architectures
             assert_eq!(
@@ -930,14 +783,8 @@ mod tests {
             // Start with highest tier capabilities
             let mut capabilities = ArchCapabilities {
                 has_aes: true,
-                has_crc: false,
                 has_sha3: true,
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
+                ..CAPS_NONE
             };
 
             // Should select highest tier
@@ -967,15 +814,11 @@ mod tests {
 
             // Start with highest tier capabilities
             let mut capabilities = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
                 has_pclmulqdq: true,
-                has_avx2: false,
                 has_avx512vl: true,
                 has_vpclmulqdq: true,
+                ..CAPS_NONE
             };
 
             // Should select highest tier
@@ -1019,15 +862,8 @@ mod tests {
 
             // AArch64: SHA3 available but AES not (impossible in real hardware, but test safety)
             let aarch64_partial = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: true, // This would be impossible in real detection
-                has_sse41: false,
-                has_sse42: false,
-                has_pclmulqdq: false,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: false,
+                has_sha3: true,
+                ..CAPS_NONE
             };
             // Should fall back to software since AES is required for SHA3
             assert_eq!(
@@ -1037,15 +873,10 @@ mod tests {
 
             // x86_64: VPCLMULQDQ available but AVX512VL not (impossible in real hardware)
             let x86_64_partial = ArchCapabilities {
-                has_aes: false,
-                has_crc: false,
-                has_sha3: false,
                 has_sse41: true,
-                has_sse42: false,
                 has_pclmulqdq: true,
-                has_avx2: false,
-                has_avx512vl: false,
-                has_vpclmulqdq: true, // This would be impossible in real detection
+                has_vpclmulqdq: true,
+                ..CAPS_NONE
             };
             // Should fall back to SSE tier since AVX512VL is required for VPCLMULQDQ
             assert_eq!(
@@ -1062,17 +893,7 @@ mod software_fallback_tests {
     #[test]
     fn test_aarch64_without_aes_falls_back_to_software() {
         // Test that AArch64 without AES support falls back to software implementation
-        let capabilities_no_aes = ArchCapabilities {
-            has_aes: false, // No AES support
-            has_crc: false,
-            has_sha3: false, // SHA3 requires AES, so also false
-            has_sse41: false,
-            has_sse42: false,
-            has_pclmulqdq: false,
-            has_avx2: false,
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
-        };
+        let capabilities_no_aes = CAPS_NONE;
 
         let tier = select_performance_tier_for_test(&capabilities_no_aes);
         assert_eq!(
@@ -1086,16 +907,8 @@ mod software_fallback_tests {
     fn test_x86_without_pclmulqdq_falls_back_to_software() {
         // Test that x86 without SSE4.1/PCLMULQDQ falls back to software implementation
         let capabilities_no_pclmul = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
-            has_sse41: true, // SSE4.1 available
-            has_sse42: false,
-            has_pclmulqdq: false, // But PCLMULQDQ not available
-            has_avx2: false,
-
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
+            has_sse41: true,
+            ..CAPS_NONE
         };
 
         let tier = select_performance_tier_for_test(&capabilities_no_pclmul);
@@ -1106,18 +919,7 @@ mod software_fallback_tests {
         );
 
         // Test x86 without SSE4.1
-        let capabilities_no_sse = ArchCapabilities {
-            has_aes: false,
-            has_crc: false,
-            has_sha3: false,
-            has_sse41: false, // No SSE4.1 support
-            has_sse42: false,
-            has_pclmulqdq: false, // PCLMULQDQ requires SSE4.1
-            has_avx2: false,
-
-            has_avx512vl: false,
-            has_vpclmulqdq: false,
-        };
+        let capabilities_no_sse = CAPS_NONE;
 
         let tier = select_performance_tier_for_test(&capabilities_no_sse);
         assert_eq!(

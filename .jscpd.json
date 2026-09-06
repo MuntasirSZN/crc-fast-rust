@@ -1,0 +1,7 @@
+{
+  "threshold": 8,
+  "reporters": ["ai"],
+  "ignore": ["**/tables.rs", "**/fusion/**"],
+  "minLines": 5,
+  "minTokens": 50
+}

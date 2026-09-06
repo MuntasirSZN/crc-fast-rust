@@ -26,6 +26,23 @@ pub mod software;
 pub mod x86;
 pub mod x86_64;
 
+/// Dispatch `state/bytes/params` to the width-generic `algorithm::update`.
+/// Single source for the 7-arm `params.width` match repeated by every
+/// arch-specific `update_*` wrapper.
+macro_rules! dispatch_width {
+    ($state:expr, $bytes:expr, $params:expr, $ops:expr) => {{
+        match $params.width {
+            64 => algorithm::update::<_, Width64>($state, $bytes, $params, $ops),
+            32 => algorithm::update::<_, Width32>($state as u32, $bytes, $params, $ops) as u64,
+            31 => algorithm::update::<_, Width31>($state as u32, $bytes, $params, $ops) as u64,
+            16 => algorithm::update::<_, Width16>($state as u16, $bytes, $params, $ops) as u64,
+            5 => algorithm::update::<_, Width5>($state as u8, $bytes, $params, $ops) as u64,
+            8 => algorithm::update::<_, Width8>($state as u8, $bytes, $params, $ops) as u64,
+            _ => unsafe { core::hint::unreachable_unchecked() },
+        }
+    }};
+}
+
 /// Main entry point that dispatches to the appropriate architecture
 ///
 /// # Safety
@@ -65,15 +82,7 @@ unsafe fn update_aarch64_aes(
     params: &CrcParams,
     ops: Aarch64AesOps,
 ) -> u64 {
-    match params.width {
-        64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
-        32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
-        31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
-        16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
-        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    }
+    dispatch_width!(state, bytes, params, &ops)
 }
 
 #[inline]
@@ -85,15 +94,7 @@ unsafe fn update_aarch64_aes_sha3(
     params: &CrcParams,
     ops: Aarch64AesSha3Ops,
 ) -> u64 {
-    match params.width {
-        64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
-        32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
-        31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
-        16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
-        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    }
+    dispatch_width!(state, bytes, params, &ops)
 }
 
 /// Main entry point for x86/x86_64
@@ -134,15 +135,7 @@ unsafe fn update_x86_sse_pclmulqdq(
     params: &CrcParams,
     ops: crate::arch::x86::sse::X86SsePclmulqdqOps,
 ) -> u64 {
-    match params.width {
-        64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
-        32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
-        31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
-        16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
-        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    }
+    dispatch_width!(state, bytes, params, &ops)
 }
 
 #[inline]
@@ -154,15 +147,7 @@ unsafe fn update_x86_64_avx512_pclmulqdq(
     params: &CrcParams,
     ops: crate::arch::x86_64::avx512::X86_64Avx512PclmulqdqOps,
 ) -> u64 {
-    match params.width {
-        64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
-        32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
-        31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
-        16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
-        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    }
+    dispatch_width!(state, bytes, params, &ops)
 }
 
 #[inline]
@@ -174,15 +159,7 @@ unsafe fn update_x86_64_avx2_vpclmulqdq(
     params: &CrcParams,
     ops: crate::arch::x86_64::avx2_vpclmulqdq::X86_64Avx2VpclmulqdqOps,
 ) -> u64 {
-    match params.width {
-        64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
-        32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
-        31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
-        16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
-        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    }
+    dispatch_width!(state, bytes, params, &ops)
 }
 
 #[inline]
@@ -194,15 +171,7 @@ unsafe fn update_x86_64_avx512_vpclmulqdq(
     params: &CrcParams,
     ops: crate::arch::x86_64::avx512_vpclmulqdq::X86_64Avx512VpclmulqdqOps,
 ) -> u64 {
-    match params.width {
-        64 => algorithm::update::<_, Width64>(state, bytes, params, &ops),
-        32 => algorithm::update::<_, Width32>(state as u32, bytes, params, &ops) as u64,
-        31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
-        16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
-        5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
-        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    }
+    dispatch_width!(state, bytes, params, &ops)
 }
 
 #[inline(always)]
@@ -220,10 +189,34 @@ mod tests {
     use super::*;
     use crate::crc32::consts::CRC32_BZIP2;
     use crate::crc64::consts::CRC64_NVME;
-    use crate::test::consts::{TEST_256_BYTES_STRING, TEST_ALL_CONFIGS, TEST_CHECK_STRING};
+    use crate::test::consts::{
+        TEST_1024_BYTES_STRING, TEST_256_BYTES_STRING, TEST_512_BYTES_STRING, TEST_ALL_CONFIGS,
+        TEST_CHECK_STRING,
+    };
     use crate::test::create_aligned_data;
     use crate::test::enums::AnyCrcTestConfig;
     use rand::{rng, RngExt};
+
+    fn assert_update_matches_reference(data: &[u8]) {
+        for config in TEST_ALL_CONFIGS {
+            let actual = unsafe {
+                update(
+                    config.get_init_algorithm(),
+                    &create_aligned_data(data),
+                    config.get_params(),
+                ) ^ config.get_xorout()
+            };
+
+            assert_eq!(
+                actual,
+                config.checksum_with_reference(data),
+                "Mismatch CRC, {}, expected {:#x}, got {:#x}",
+                config.get_name(),
+                config.get_check(),
+                actual
+            );
+        }
+    }
 
     #[test]
     fn test_check_value() {
@@ -250,72 +243,17 @@ mod tests {
 
     #[test]
     fn test_256_string() {
-        for config in TEST_ALL_CONFIGS {
-            let actual = unsafe {
-                update(
-                    config.get_init_algorithm(),
-                    &create_aligned_data(TEST_256_BYTES_STRING),
-                    config.get_params(),
-                ) ^ config.get_xorout()
-            };
-
-            assert_eq!(
-                actual,
-                config.checksum_with_reference(TEST_256_BYTES_STRING),
-                "Mismatch CRC, {}, expected {:#x}, got {:#x}",
-                config.get_name(),
-                config.get_check(),
-                actual
-            );
-        }
+        assert_update_matches_reference(TEST_256_BYTES_STRING);
     }
 
     #[test]
     fn test_512_string() {
-        let test_string = b"12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234561234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456";
-
-        for config in TEST_ALL_CONFIGS {
-            let actual = unsafe {
-                update(
-                    config.get_init_algorithm(),
-                    &create_aligned_data(test_string),
-                    config.get_params(),
-                ) ^ config.get_xorout()
-            };
-
-            assert_eq!(
-                actual,
-                config.checksum_with_reference(test_string),
-                "Mismatch CRC, {}, expected {:#x}, got {:#x}",
-                config.get_name(),
-                config.get_check(),
-                actual
-            );
-        }
+        assert_update_matches_reference(TEST_512_BYTES_STRING);
     }
 
     #[test]
     fn test_1024_string() {
-        let test_string = b"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345612345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234561234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456";
-
-        for config in TEST_ALL_CONFIGS {
-            let actual = unsafe {
-                update(
-                    config.get_init_algorithm(),
-                    &create_aligned_data(test_string),
-                    config.get_params(),
-                ) ^ config.get_xorout()
-            };
-
-            assert_eq!(
-                actual,
-                config.checksum_with_reference(test_string),
-                "Mismatch CRC, {}, expected {:#x}, got {:#x}",
-                config.get_name(),
-                config.get_check(),
-                actual
-            );
-        }
+        assert_update_matches_reference(TEST_1024_BYTES_STRING);
     }
 
     // CRC-64/NVME is a special flower in that Rust's crc library doesn't support it yet, so we have

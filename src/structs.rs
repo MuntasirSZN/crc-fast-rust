@@ -106,6 +106,28 @@ impl CrcCalculator for Calculator {
     }
 }
 
+/// Bit-reverse `init` into the "algorithm form" used by the SIMD backend.
+pub(crate) fn reflected_init(reflected: bool, width: u8, init: u64) -> u64 {
+    if !reflected {
+        return init;
+    }
+    match width {
+        5 => {
+            let mut rev = 0u8;
+            let init_u8 = init as u8;
+            for i in 0..5 {
+                if (init_u8 >> i) & 1 == 1 {
+                    rev |= 1 << (4 - i);
+                }
+            }
+            rev as u64
+        }
+        8 => (init as u8).reverse_bits() as u64,
+        16 => (init as u16).reverse_bits() as u64,
+        _ => init,
+    }
+}
+
 impl CrcParams {
     /// Fallible constructor for custom CRC parameters (panic-free, uses `exn`).
     ///
@@ -126,25 +148,7 @@ impl CrcParams {
         let keys_array = cache::get_or_generate_keys(width, poly, reflected);
         let keys = crate::CrcKeysStorage::from_keys_fold_256(keys_array);
 
-        let init_algorithm = if reflected {
-            match width {
-                5 => {
-                    let mut rev = 0u8;
-                    let init_u8 = init as u8;
-                    for i in 0..5 {
-                        if (init_u8 >> i) & 1 == 1 {
-                            rev |= 1 << (4 - i);
-                        }
-                    }
-                    rev as u64
-                }
-                8 => (init as u8).reverse_bits() as u64,
-                16 => (init as u16).reverse_bits() as u64,
-                _ => init,
-            }
-        } else {
-            init
-        };
+        let init_algorithm = reflected_init(reflected, width, init);
 
         Ok(Self {
             algorithm: CrcAlgorithm::CrcCustom,
@@ -189,25 +193,7 @@ impl CrcParams {
             // Keep backwards compat but panic-free: create dummy with zero keys
             // Caller should use `try_new` to get proper `Exn` error.
             let keys = crate::CrcKeysStorage::from_keys_fold_256([0; 23]);
-            let init_algorithm = if reflected {
-                match width {
-                    5 => {
-                        let mut rev = 0u8;
-                        let init_u8 = init as u8;
-                        for i in 0..5 {
-                            if (init_u8 >> i) & 1 == 1 {
-                                rev |= 1 << (4 - i);
-                            }
-                        }
-                        rev as u64
-                    }
-                    8 => (init as u8).reverse_bits() as u64,
-                    16 => (init as u16).reverse_bits() as u64,
-                    _ => init,
-                }
-            } else {
-                init
-            };
+            let init_algorithm = reflected_init(reflected, width, init);
             return Self {
                 algorithm: CrcAlgorithm::CrcCustom,
                 name,
@@ -226,25 +212,7 @@ impl CrcParams {
         let keys = crate::CrcKeysStorage::from_keys_fold_256(keys_array);
 
         // For reflected CRCs, bit-reverse the init value for the SIMD algorithm
-        let init_algorithm = if reflected {
-            match width {
-                5 => {
-                    let mut rev = 0u8;
-                    let init_u8 = init as u8;
-                    for i in 0..5 {
-                        if (init_u8 >> i) & 1 == 1 {
-                            rev |= 1 << (4 - i);
-                        }
-                    }
-                    rev as u64
-                }
-                8 => (init as u8).reverse_bits() as u64,
-                16 => (init as u16).reverse_bits() as u64,
-                _ => init,
-            }
-        } else {
-            init
-        };
+        let init_algorithm = reflected_init(reflected, width, init);
 
         Self {
             algorithm: CrcAlgorithm::CrcCustom,

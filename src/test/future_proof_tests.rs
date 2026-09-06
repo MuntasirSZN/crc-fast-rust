@@ -6,6 +6,79 @@
 
 use crate::{CrcAlgorithm, CrcKeysStorage, CrcParams};
 
+fn params_23(fill: u64) -> CrcParams {
+    CrcParams {
+        algorithm: CrcAlgorithm::CrcCustom,
+        name: "Test CRC",
+        width: 32,
+        poly: 0x1EDC6F41,
+        init: 0xFFFFFFFF,
+        init_algorithm: 0xFFFFFFFF,
+        refin: true,
+        refout: true,
+        xorout: 0xFFFFFFFF,
+        check: 0x12345678,
+        keys: CrcKeysStorage::from_keys_fold_256([fill; 23]),
+    }
+}
+
+fn params_25(fill: u64) -> CrcParams {
+    CrcParams {
+        algorithm: CrcAlgorithm::CrcCustom,
+        name: "Test CRC 64",
+        width: 64,
+        poly: 0x42F0E1EBA9EA3693,
+        init: 0xFFFFFFFFFFFFFFFF,
+        init_algorithm: 0xFFFFFFFFFFFFFFFF,
+        refin: true,
+        refout: true,
+        xorout: 0xFFFFFFFFFFFFFFFF,
+        check: 0x123456789ABCDEF0,
+        keys: CrcKeysStorage::from_keys_fold_future_test([fill; 25]),
+    }
+}
+
+fn assert_valid_checked(params: &CrcParams, count: usize, fill: u64) {
+    for i in 0..count {
+        assert_eq!(
+            params.get_key_checked(i),
+            Some(fill),
+            "Valid index {} should return Some({})",
+            i,
+            fill
+        );
+    }
+}
+
+fn assert_oob_checked(params: &CrcParams, count: usize) {
+    for idx in [count, count + 1, 100] {
+        assert_eq!(
+            params.get_key_checked(idx),
+            None,
+            "Index {} should return None",
+            idx
+        );
+    }
+}
+
+fn assert_valid_unchecked(params: &CrcParams, count: usize, fill: u64) {
+    for i in 0..count {
+        assert_eq!(
+            params.get_key(i),
+            fill,
+            "Valid index {} should return {}",
+            i,
+            fill
+        );
+    }
+}
+
+fn assert_oob_unchecked(params: &CrcParams, count: usize) {
+    for idx in [count, count + 1, 100] {
+        assert_eq!(params.get_key(idx), 0, "Index {} should return 0", idx);
+    }
+}
+
 #[test]
 fn test_crc_keys_storage_bounds_checking() {
     // Test KeysFold256 variant (23 keys)
@@ -73,195 +146,51 @@ fn test_crc_keys_storage_bounds_checking() {
 
 #[test]
 fn test_crc_params_get_key_checked() {
-    // Create test CrcParams with 23-key storage
-    let keys_23 = [42u64; 23];
-    let params_23 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Test CRC",
-        width: 32,
-        poly: 0x1EDC6F41,
-        init: 0xFFFFFFFF,
-        init_algorithm: 0xFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFF,
-        check: 0x12345678,
-        keys: CrcKeysStorage::from_keys_fold_256(keys_23),
-    };
+    let params_23 = params_23(42);
+    assert_valid_checked(&params_23, 23, 42);
+    assert_oob_checked(&params_23, 23);
 
-    // Test valid indices return Some(value)
-    for i in 0..23 {
-        assert_eq!(
-            params_23.get_key_checked(i),
-            Some(42),
-            "Valid index {} should return Some(42)",
-            i
-        );
-    }
-
-    // Test out-of-bounds indices return None
-    assert_eq!(
-        params_23.get_key_checked(23),
-        None,
-        "Index 23 should return None for 23-key params"
-    );
-    assert_eq!(
-        params_23.get_key_checked(24),
-        None,
-        "Index 24 should return None for 23-key params"
-    );
-    assert_eq!(
-        params_23.get_key_checked(100),
-        None,
-        "Large index should return None for 23-key params"
-    );
-
-    // Create test CrcParams with 25-key storage
-    let keys_25 = [84u64; 25];
-    let params_25 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Test CRC 64",
-        width: 64,
-        poly: 0x42F0E1EBA9EA3693,
-        init: 0xFFFFFFFFFFFFFFFF,
-        init_algorithm: 0xFFFFFFFFFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFFFFFFFFFF,
-        check: 0x123456789ABCDEF0,
-        keys: CrcKeysStorage::from_keys_fold_future_test(keys_25),
-    };
-
-    // Test valid indices return Some(value)
-    for i in 0..25 {
-        assert_eq!(
-            params_25.get_key_checked(i),
-            Some(84),
-            "Valid index {} should return Some(84)",
-            i
-        );
-    }
-
-    // Test out-of-bounds indices return None
-    assert_eq!(
-        params_25.get_key_checked(25),
-        None,
-        "Index 25 should return None for 25-key params"
-    );
-    assert_eq!(
-        params_25.get_key_checked(26),
-        None,
-        "Index 26 should return None for 25-key params"
-    );
-    assert_eq!(
-        params_25.get_key_checked(100),
-        None,
-        "Large index should return None for 25-key params"
-    );
+    let params_25 = params_25(84);
+    assert_valid_checked(&params_25, 25, 84);
+    assert_oob_checked(&params_25, 25);
 }
 
 #[test]
 fn test_key_count_returns_correct_values() {
-    // Test KeysFold256 variant
-    let keys_23 = [1u64; 23];
-    let storage_23 = CrcKeysStorage::from_keys_fold_256(keys_23);
-    assert_eq!(
-        storage_23.key_count(),
-        23,
-        "KeysFold256 should report 23 keys"
-    );
+    let params_23 = params_23(1);
+    assert_eq!(params_23.key_count(), 23);
+    assert_eq!(params_23.keys.key_count(), 23);
 
-    let params_23 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Test CRC",
-        width: 32,
-        poly: 0x1EDC6F41,
-        init: 0xFFFFFFFF,
-        init_algorithm: 0xFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFF,
-        check: 0x12345678,
-        keys: storage_23,
-    };
-    assert_eq!(
-        params_23.key_count(),
-        23,
-        "CrcParams with KeysFold256 should report 23 keys"
-    );
-
-    // Test KeysFutureTest variant
-    let keys_25 = [2u64; 25];
-    let storage_25 = CrcKeysStorage::from_keys_fold_future_test(keys_25);
-    assert_eq!(
-        storage_25.key_count(),
-        25,
-        "KeysFutureTest should report 25 keys"
-    );
-
-    let params_25 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Test CRC 64",
-        width: 64,
-        poly: 0x42F0E1EBA9EA3693,
-        init: 0xFFFFFFFFFFFFFFFF,
-        init_algorithm: 0xFFFFFFFFFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFFFFFFFFFF,
-        check: 0x123456789ABCDEF0,
-        keys: storage_25,
-    };
-    assert_eq!(
-        params_25.key_count(),
-        25,
-        "CrcParams with KeysFutureTest should report 25 keys"
-    );
+    let params_25 = params_25(2);
+    assert_eq!(params_25.key_count(), 25);
+    assert_eq!(params_25.keys.key_count(), 25);
 }
 
 #[test]
 fn test_crc_params_get_key_bounds_checking() {
-    // Create test CrcParams with 23-key storage
-    let keys_23 = [99u64; 23];
-    let params_23 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Test CRC",
-        width: 32,
-        poly: 0x1EDC6F41,
-        init: 0xFFFFFFFF,
-        init_algorithm: 0xFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFF,
-        check: 0x12345678,
-        keys: CrcKeysStorage::from_keys_fold_256(keys_23),
-    };
+    let params_23 = params_23(99);
+    assert_valid_unchecked(&params_23, 23, 99);
+    assert_oob_unchecked(&params_23, 23);
+}
 
-    // Test valid indices
-    for i in 0..23 {
-        assert_eq!(
-            params_23.get_key(i),
-            99,
-            "Valid index {} should return 99",
-            i
-        );
-    }
+#[test]
+fn test_reflected_init_reversal() {
+    use crate::structs::reflected_init;
 
-    // Test out-of-bounds indices return 0
+    // 5-bit loop arm
+    assert_eq!(reflected_init(true, 5, 0x01), 0x10);
+    assert_eq!(reflected_init(true, 5, 0x1f), 0x1f);
+    // 8-bit arm (previously missing from the FFI copy)
+    assert_eq!(reflected_init(true, 8, 0x01), 0x80);
+    // 16-bit arm
+    assert_eq!(reflected_init(true, 16, 0x0001), 0x8000);
+    // Non-reflected and wide widths pass through
+    assert_eq!(reflected_init(false, 8, 0x01), 0x01);
+    assert_eq!(reflected_init(false, 5, 0x01), 0x01);
+    assert_eq!(reflected_init(true, 32, 0x12345678), 0x12345678);
     assert_eq!(
-        params_23.get_key(23),
-        0,
-        "Index 23 should return 0 for 23-key params"
-    );
-    assert_eq!(
-        params_23.get_key(24),
-        0,
-        "Index 24 should return 0 for 23-key params"
-    );
-    assert_eq!(
-        params_23.get_key(100),
-        0,
-        "Large index should return 0 for 23-key params"
+        reflected_init(true, 64, 0x0102030405060708),
+        0x0102030405060708
     );
 }
 
@@ -730,33 +659,9 @@ fn test_memory_usage_impact_of_enum_based_storage() {
     );
 
     // Test CrcParams memory usage
-    let params_23 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Memory Test 23",
-        width: 32,
-        poly: 0x1EDC6F41,
-        init: 0xFFFFFFFF,
-        init_algorithm: 0xFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFF,
-        check: 0x12345678,
-        keys: storage_23,
-    };
+    let params_23 = params_23(0);
 
-    let params_25 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Memory Test 25",
-        width: 64,
-        poly: 0x42F0E1EBA9EA3693,
-        init: 0xFFFFFFFFFFFFFFFF,
-        init_algorithm: 0xFFFFFFFFFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFFFFFFFFFF,
-        check: 0x123456789ABCDEF0,
-        keys: storage_25,
-    };
+    let params_25 = params_25(0);
 
     let params_23_size = mem::size_of_val(&params_23);
     let params_25_size = mem::size_of_val(&params_25);
@@ -985,36 +890,8 @@ fn test_create_crc_params_using_keys_future_test_variant() {
 fn test_code_gracefully_handles_different_key_array_sizes() {
     // Test that the same code can handle both 23-key and 25-key variants gracefully
 
-    let keys_23 = [0x1234567890ABCDEFu64; 23];
-    let keys_25 = [0xFEDCBA0987654321u64; 25];
-
-    let params_23 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "23-Key Test",
-        width: 32,
-        poly: 0x1EDC6F41,
-        init: 0xFFFFFFFF,
-        init_algorithm: 0xFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFF,
-        check: 0x12345678,
-        keys: CrcKeysStorage::from_keys_fold_256(keys_23),
-    };
-
-    let params_25 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "25-Key Test",
-        width: 64,
-        poly: 0x42F0E1EBA9EA3693,
-        init: 0xFFFFFFFFFFFFFFFF,
-        init_algorithm: 0xFFFFFFFFFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFFFFFFFFFF,
-        check: 0x123456789ABCDEF0,
-        keys: CrcKeysStorage::from_keys_fold_future_test(keys_25),
-    };
+    let params_23 = params_23(0x1234567890ABCDEF);
+    let params_25 = params_25(0xFEDCBA0987654321);
 
     // Generic function that works with any CrcParams regardless of key count
     fn process_crc_params(params: CrcParams) -> (usize, u64, u64) {
@@ -1265,36 +1142,10 @@ fn test_future_expansion_backwards_compatibility() {
     }
 
     // Test with original 23-key params
-    let keys_23 = [0xABCDEF0123456789u64; 23];
-    let params_23 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Backwards Compat Test 23",
-        width: 32,
-        poly: 0x1EDC6F41,
-        init: 0xFFFFFFFF,
-        init_algorithm: 0xFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFF,
-        check: 0x12345678,
-        keys: CrcKeysStorage::from_keys_fold_256(keys_23),
-    };
+    let params_23 = params_23(0xABCDEF0123456789u64);
 
     // Test with expanded 25-key params
-    let keys_25 = [0xABCDEF0123456789u64; 25];
-    let params_25 = CrcParams {
-        algorithm: CrcAlgorithm::CrcCustom,
-        name: "Backwards Compat Test 25",
-        width: 64,
-        poly: 0x42F0E1EBA9EA3693,
-        init: 0xFFFFFFFFFFFFFFFF,
-        init_algorithm: 0xFFFFFFFFFFFFFFFF,
-        refin: true,
-        refout: true,
-        xorout: 0xFFFFFFFFFFFFFFFF,
-        check: 0x123456789ABCDEF0,
-        keys: CrcKeysStorage::from_keys_fold_future_test(keys_25),
-    };
+    let params_25 = params_25(0xABCDEF0123456789u64);
 
     // Run third-party function with both variants
     let result_23 = third_party_key_processor(params_23);
@@ -1352,6 +1203,7 @@ fn test_future_expansion_backwards_compatibility() {
     any(target_arch = "aarch64", target_arch = "x86_64", target_arch = "x86")
 ))]
 mod ffi_tests {
+    use super::{params_23, params_25};
     use crate::ffi::CrcFastParams;
     use crate::{CrcAlgorithm, CrcKeysStorage, CrcParams};
 
@@ -1601,36 +1453,10 @@ mod ffi_tests {
         // Test FFI with different key count scenarios
 
         // Test 23-key variant
-        let keys_23 = [0x1111111111111111u64; 23];
-        let params_23 = CrcParams {
-            algorithm: CrcAlgorithm::CrcCustom,
-            name: "23-Key FFI Test",
-            width: 32,
-            poly: 0x1EDC6F41,
-            init: 0xFFFFFFFF,
-            init_algorithm: 0xFFFFFFFF,
-            refin: true,
-            refout: true,
-            xorout: 0xFFFFFFFF,
-            check: 0x12345678,
-            keys: CrcKeysStorage::from_keys_fold_256(keys_23),
-        };
+        let params_23 = params_23(0x1111111111111111u64);
 
         // Test 25-key variant
-        let keys_25 = [0x2222222222222222u64; 25];
-        let params_25 = CrcParams {
-            algorithm: CrcAlgorithm::CrcCustom,
-            name: "25-Key FFI Test",
-            width: 64,
-            poly: 0x42F0E1EBA9EA3693,
-            init: 0xFFFFFFFFFFFFFFFF,
-            init_algorithm: 0xFFFFFFFFFFFFFFFF,
-            refin: true,
-            refout: true,
-            xorout: 0xFFFFFFFFFFFFFFFF,
-            check: 0x123456789ABCDEF0,
-            keys: CrcKeysStorage::from_keys_fold_future_test(keys_25),
-        };
+        let params_25 = params_25(0x2222222222222222u64);
 
         // Convert both to FFI
         let ffi_23: CrcFastParams = params_23.into();

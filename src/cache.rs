@@ -1197,25 +1197,10 @@ mod tests {
 
         // Test all existing CRC parameter combinations work correctly with caching
         for config in TEST_ALL_CONFIGS {
-            let params = crate::CrcParams::new(
-                config.get_name(),
-                config.get_width(),
-                config.get_poly(),
-                config.get_init(),
-                config.get_refin(),
-                config.get_xorout(),
-                config.get_check(),
-            );
+            let params = crate::test::params_from_test_config(config);
 
             // Verify the parameters are set correctly
-            assert_eq!(params.name, config.get_name());
-            assert_eq!(params.width, config.get_width());
-            assert_eq!(params.poly, config.get_poly());
-            assert_eq!(params.init, config.get_init());
-            assert_eq!(params.refin, config.get_refin());
-            assert_eq!(params.refout, config.get_refin());
-            assert_eq!(params.xorout, config.get_xorout());
-            assert_eq!(params.check, config.get_check());
+            crate::test::assert_params_match_config(&params, config);
 
             // Verify keys are correct by comparing with expected keys
             let expected_keys = config.get_keys();
@@ -1443,25 +1428,10 @@ mod tests {
         // Test creating CrcParams for all standard CRC algorithms
         for config in TEST_ALL_CONFIGS {
             // Create CrcParams using the same parameters as the standard algorithm
-            let params = crate::CrcParams::new(
-                config.get_name(),
-                config.get_width(),
-                config.get_poly(),
-                config.get_init(),
-                config.get_refin(),
-                config.get_xorout(),
-                config.get_check(),
-            );
+            let params = crate::test::params_from_test_config(config);
 
             // Verify the created params match the expected configuration
-            assert_eq!(params.name, config.get_name());
-            assert_eq!(params.width, config.get_width());
-            assert_eq!(params.poly, config.get_poly());
-            assert_eq!(params.init, config.get_init());
-            assert_eq!(params.refin, config.get_refin());
-            assert_eq!(params.refout, config.get_refin());
-            assert_eq!(params.xorout, config.get_xorout());
-            assert_eq!(params.check, config.get_check());
+            crate::test::assert_params_match_config(&params, config);
 
             // Most importantly, verify the keys are correct
             assert_eq!(

@@ -10,182 +10,141 @@ use crate::CrcParams;
 // Native Table Generation Functions
 // ============================================================================
 
-/// Computes a single CRC-16 value for table generation.
-const fn crc16_single(poly: u16, reflect: bool, mut value: u16) -> u16 {
-    if reflect {
-        let mut i = 0;
-        while i < 8 {
-            value = (value >> 1) ^ ((value & 1) * poly);
-            i += 1;
-        }
-    } else {
-        value <<= 8;
-        let mut i = 0;
-        while i < 8 {
-            value = (value << 1) ^ (((value >> 15) & 1) * poly);
-            i += 1;
-        }
-    }
-    value
-}
-
-/// Computes a single CRC-32 value for table generation.
-const fn crc32_single(poly: u32, reflect: bool, mut value: u32) -> u32 {
-    if reflect {
-        let mut i = 0;
-        while i < 8 {
-            value = (value >> 1) ^ ((value & 1) * poly);
-            i += 1;
-        }
-    } else {
-        value <<= 24;
-        let mut i = 0;
-        while i < 8 {
-            value = (value << 1) ^ (((value >> 31) & 1) * poly);
-            i += 1;
-        }
-    }
-    value
-}
-
-/// Computes a single CRC-64 value for table generation.
-const fn crc64_single(poly: u64, reflect: bool, mut value: u64) -> u64 {
-    if reflect {
-        let mut i = 0;
-        while i < 8 {
-            value = (value >> 1) ^ ((value & 1) * poly);
-            i += 1;
-        }
-    } else {
-        value <<= 56;
-        let mut i = 0;
-        while i < 8 {
-            value = (value << 1) ^ (((value >> 63) & 1) * poly);
-            i += 1;
-        }
-    }
-    value
-}
-
-/// Generates a 16-lane lookup table for CRC-16 calculations.
+/// Defines a `const fn` computing one table entry for a slicing-by-16 lookup table.
 ///
-/// This function creates a table compatible with the `crc` crate's `Table<16>` format,
-/// enabling processing of 16 bytes at a time for improved performance.
-pub const fn generate_table_u16(width: u8, poly: u16, reflect: bool) -> [[u16; 256]; 16] {
-    let poly = if reflect {
-        let poly = poly.reverse_bits();
-        poly >> (16u8 - width)
-    } else {
-        poly << (16u8 - width)
-    };
-
-    let mut table = [[0u16; 256]; 16];
-
-    // Generate first table (lane 0) directly
-    let mut i = 0;
-    while i < 256 {
-        table[0][i] = crc16_single(poly, reflect, i as u16);
-        i += 1;
-    }
-
-    // Generate subsequent lanes based on lane 0
-    let mut i = 0;
-    while i < 256 {
-        let mut e = 1;
-        while e < 16 {
-            let one_lower = table[e - 1][i];
+/// `$shift` left-aligns forward values into register space; `$top` is the
+/// MSB index checked during the forward shift loop. One definition replaces
+/// the `crc16/32/64_single` triple, which differed only in these two constants
+/// and the integer type.
+macro_rules! define_crc_single {
+    ($(#[$meta:meta])* $name:ident, $int:ty, $shift:expr, $top:expr) => {
+        $(#[$meta])*
+        const fn $name(poly: $int, reflect: bool, mut value: $int) -> $int {
             if reflect {
-                table[e][i] = (one_lower >> 8) ^ table[0][(one_lower & 0xFF) as usize];
+                let mut i = 0;
+                while i < 8 {
+                    value = (value >> 1) ^ ((value & 1) * poly);
+                    i += 1;
+                }
             } else {
-                table[e][i] = (one_lower << 8) ^ table[0][((one_lower >> 8) & 0xFF) as usize];
+                value <<= $shift;
+                let mut i = 0;
+                while i < 8 {
+                    value = (value << 1) ^ (((value >> $top) & 1) * poly);
+                    i += 1;
+                }
             }
-            e += 1;
+            value
         }
-        i += 1;
-    }
-
-    table
+    };
 }
 
-/// Generates a 16-lane lookup table for CRC-32 calculations.
+/// Defines a `pub const fn` generating a 16-lane slicing-by-16 lookup table.
 ///
-/// This function creates a table compatible with the `crc` crate's `Table<16>` format,
-/// enabling processing of 16 bytes at a time for improved performance.
-pub const fn generate_table_u32(width: u8, poly: u32, reflect: bool) -> [[u32; 256]; 16] {
-    let poly = if reflect {
-        let poly = poly.reverse_bits();
-        poly >> (32u8 - width)
-    } else {
-        poly << (32u8 - width)
-    };
-
-    let mut table = [[0u32; 256]; 16];
-
-    // Generate first table (lane 0) directly
-    let mut i = 0;
-    while i < 256 {
-        table[0][i] = crc32_single(poly, reflect, i as u32);
-        i += 1;
-    }
-
-    // Generate subsequent lanes based on lane 0
-    let mut i = 0;
-    while i < 256 {
-        let mut e = 1;
-        while e < 16 {
-            let one_lower = table[e - 1][i];
-            if reflect {
-                table[e][i] = (one_lower >> 8) ^ table[0][(one_lower & 0xFF) as usize];
+/// `$bits` is the register width (16/32/64); `$hi_shift` selects the top byte
+/// of the previous lane when extending lanes for forward CRCs. Replaces the
+/// `generate_table_u16/32/64` triple.
+macro_rules! define_generate_table {
+    ($(#[$meta:meta])* $name:ident, $int:ty, $bits:expr, $single:ident, $hi_shift:expr) => {
+        $(#[$meta])*
+        pub const fn $name(width: u8, poly: $int, reflect: bool) -> [[$int; 256]; 16] {
+            let poly = if reflect {
+                let poly = poly.reverse_bits();
+                poly >> ($bits - width)
             } else {
-                table[e][i] = (one_lower << 8) ^ table[0][((one_lower >> 24) & 0xFF) as usize];
-            }
-            e += 1;
-        }
-        i += 1;
-    }
+                poly << ($bits - width)
+            };
 
-    table
+            let mut table = [[0 as $int; 256]; 16];
+
+            // Generate first table (lane 0) directly
+            let mut i = 0;
+            while i < 256 {
+                table[0][i] = $single(poly, reflect, i as $int);
+                i += 1;
+            }
+
+            // Generate subsequent lanes based on lane 0
+            let mut i = 0;
+            while i < 256 {
+                let mut e = 1;
+                while e < 16 {
+                    let one_lower = table[e - 1][i];
+                    if reflect {
+                        table[e][i] = (one_lower >> 8) ^ table[0][(one_lower & 0xFF) as usize];
+                    } else {
+                        table[e][i] =
+                            (one_lower << 8) ^ table[0][((one_lower >> $hi_shift) & 0xFF) as usize];
+                    }
+                    e += 1;
+                }
+                i += 1;
+            }
+
+            table
+        }
+    };
 }
 
-/// Generates a 16-lane lookup table for CRC-64 calculations.
-///
-/// This function creates a table compatible with the `crc` crate's `Table<16>` format,
-/// enabling processing of 16 bytes at a time for improved performance.
-pub const fn generate_table_u64(width: u8, poly: u64, reflect: bool) -> [[u64; 256]; 16] {
-    let poly = if reflect {
-        let poly = poly.reverse_bits();
-        poly >> (64u8 - width)
-    } else {
-        poly << (64u8 - width)
-    };
+define_crc_single!(
+    /// Computes a single CRC-16 value for table generation.
+    crc16_single,
+    u16,
+    8,
+    15
+);
 
-    let mut table = [[0u64; 256]; 16];
+define_crc_single!(
+    /// Computes a single CRC-32 value for table generation.
+    crc32_single,
+    u32,
+    24,
+    31
+);
 
-    // Generate first table (lane 0) directly
-    let mut i = 0;
-    while i < 256 {
-        table[0][i] = crc64_single(poly, reflect, i as u64);
-        i += 1;
-    }
+define_crc_single!(
+    /// Computes a single CRC-64 value for table generation.
+    crc64_single,
+    u64,
+    56,
+    63
+);
 
-    // Generate subsequent lanes based on lane 0
-    let mut i = 0;
-    while i < 256 {
-        let mut e = 1;
-        while e < 16 {
-            let one_lower = table[e - 1][i];
-            if reflect {
-                table[e][i] = (one_lower >> 8) ^ table[0][(one_lower & 0xFF) as usize];
-            } else {
-                table[e][i] = (one_lower << 8) ^ table[0][((one_lower >> 56) & 0xFF) as usize];
-            }
-            e += 1;
-        }
-        i += 1;
-    }
+define_generate_table!(
+    /// Generates a 16-lane lookup table for CRC-16 calculations.
+    ///
+    /// This function creates a table compatible with the `crc` crate's `Table<16>` format,
+    /// enabling processing of 16 bytes at a time for improved performance.
+    generate_table_u16,
+    u16,
+    16u8,
+    crc16_single,
+    8
+);
 
-    table
-}
+define_generate_table!(
+    /// Generates a 16-lane lookup table for CRC-32 calculations.
+    ///
+    /// This function creates a table compatible with the `crc` crate's `Table<16>` format,
+    /// enabling processing of 16 bytes at a time for improved performance.
+    generate_table_u32,
+    u32,
+    32u8,
+    crc32_single,
+    24
+);
+
+define_generate_table!(
+    /// Generates a 16-lane lookup table for CRC-64 calculations.
+    ///
+    /// This function creates a table compatible with the `crc` crate's `Table<16>` format,
+    /// enabling processing of 16 bytes at a time for improved performance.
+    generate_table_u64,
+    u64,
+    64u8,
+    crc64_single,
+    56
+);
 
 // ============================================================================
 // Caching for custom CRC algorithms
@@ -271,6 +230,28 @@ pub(crate) fn update(state: u64, data: &[u8], params: &CrcParams) -> u64 {
 // CRC-5 dispatch
 // ============================================================================
 
+/// Finish a sub-32-bit CRC computed in 32-bit space.
+///
+/// `width` is 5, 8 or 31. Reflected values live unshifted, forward values are
+/// left-aligned; the mask/shift pair is derived from `width` so the six
+/// `update_crc{5,8,31}[_custom]` tails share one implementation.
+#[inline(always)]
+fn finish_scaled_u32(
+    state: u32,
+    table: &[[u32; 256]; 16],
+    refin: bool,
+    data: &[u8],
+    width: u8,
+) -> u32 {
+    let mask = ((1u64 << width) - 1) as u32;
+    if refin {
+        native_update_u32(state, table, refin, data) & mask
+    } else {
+        let shift = 32 - width;
+        (native_update_u32((state & mask) << shift, table, refin, data) >> shift) & mask
+    }
+}
+
 fn update_crc5(state: u8, data: &[u8], params: &CrcParams) -> u8 {
     let (table, refin) = match params.algorithm {
         CrcAlgorithm::Crc5Usb => (&tables::crc5::CRC5_USB_TABLE, true),
@@ -282,13 +263,7 @@ fn update_crc5(state: u8, data: &[u8], params: &CrcParams) -> u8 {
         _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
-    if refin {
-        (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
-    } else {
-        let scaled = ((state as u32) & 0x1f) << 27;
-        let res = native_update_u32(scaled, table, refin, data);
-        ((res >> 27) & 0x1f) as u8
-    }
+    finish_scaled_u32(state as u32, table, refin, data, 5) as u8
 }
 
 #[cfg(feature = "alloc")]
@@ -324,13 +299,7 @@ fn update_crc5_custom(state: u8, data: &[u8], params: &CrcParams) -> u8 {
         Box::leak(Box::new(table))
     };
 
-    if refin {
-        (native_update_u32(state as u32, table, refin, data) & 0x1f) as u8
-    } else {
-        let scaled = ((state as u32) & 0x1f) << 27;
-        let res = native_update_u32(scaled, table, refin, data);
-        ((res >> 27) & 0x1f) as u8
-    }
+    finish_scaled_u32(state as u32, table, refin, data, 5) as u8
 }
 
 #[cfg(not(feature = "alloc"))]
@@ -370,13 +339,7 @@ fn update_crc8(state: u8, data: &[u8], params: &CrcParams) -> u8 {
         _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
-    if refin {
-        (native_update_u32(state as u32, table, refin, data) & 0xff) as u8
-    } else {
-        let scaled = ((state as u32) & 0xff) << 24;
-        let res = native_update_u32(scaled, table, refin, data);
-        ((res >> 24) & 0xff) as u8
-    }
+    finish_scaled_u32(state as u32, table, refin, data, 8) as u8
 }
 
 #[cfg(feature = "alloc")]
@@ -412,13 +375,7 @@ fn update_crc8_custom(state: u8, data: &[u8], params: &CrcParams) -> u8 {
         Box::leak(Box::new(table))
     };
 
-    if refin {
-        (native_update_u32(state as u32, table, refin, data) & 0xff) as u8
-    } else {
-        let scaled = ((state as u32) & 0xff) << 24;
-        let res = native_update_u32(scaled, table, refin, data);
-        ((res >> 24) & 0xff) as u8
-    }
+    finish_scaled_u32(state as u32, table, refin, data, 8) as u8
 }
 
 #[cfg(not(feature = "alloc"))]
@@ -439,14 +396,7 @@ fn update_crc31(state: u32, data: &[u8], params: &CrcParams) -> u32 {
         _ => unsafe { core::hint::unreachable_unchecked() },
     };
 
-    if refin {
-        native_update_u32(state, table, refin, data) & 0x7fffffff
-    } else {
-        // Forward: scale to 32-bit left-aligned
-        let scaled = (state & 0x7fffffff) << 1;
-        let res = native_update_u32(scaled, table, refin, data);
-        (res >> 1) & 0x7fffffff
-    }
+    finish_scaled_u32(state, table, refin, data, 31)
 }
 
 #[cfg(feature = "alloc")]
@@ -482,13 +432,7 @@ fn update_crc31_custom(state: u32, data: &[u8], params: &CrcParams) -> u32 {
         Box::leak(Box::new(table))
     };
 
-    if refin {
-        native_update_u32(state, table, refin, data) & 0x7fffffff
-    } else {
-        let scaled = (state & 0x7fffffff) << 1;
-        let res = native_update_u32(scaled, table, refin, data);
-        (res >> 1) & 0x7fffffff
-    }
+    finish_scaled_u32(state, table, refin, data, 31)
 }
 
 #[cfg(not(feature = "alloc"))]

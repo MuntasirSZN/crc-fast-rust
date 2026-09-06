@@ -288,3 +288,141 @@ where
 
     W::barrett_reduction(&final_state, keys[8], keys[7], ops)
 }
+
+/// Generate `EnhancedCrcWidth` for a sub-or-equal-32-bit width computed in
+/// 32-bit space. Single source for the `Width5/8/16/31/32` impls that only
+/// differ by mask/shift (`0x1f/27`, `0xff/24`, `0xffff/16`, `0x7fffffff/1`,
+/// `u32::MAX/0`).
+macro_rules! impl_scaled_width32 {
+    ($Width:ty, $mask:expr, $shift:expr) => {
+        impl $crate::traits::EnhancedCrcWidth for $Width {
+            #[inline(always)]
+            fn load_constants(reflected: bool) -> [[u64; 2]; 4] {
+                $crate::crc32::width32_ops::load_constants(reflected)
+            }
+
+            #[inline(always)]
+            unsafe fn create_state<T: $crate::traits::ArchOps>(
+                value: Self::Value,
+                reflected: bool,
+                ops: &T,
+            ) -> $crate::structs::CrcState<T::Vector>
+            where
+                T::Vector: Copy,
+            {
+                let v32 = (value as u32) & $mask;
+                let vector = if reflected {
+                    ops.create_vector_from_u32(v32, false)
+                } else {
+                    ops.create_vector_from_u32(v32 << $shift, true)
+                };
+                $crate::structs::CrcState {
+                    value: vector,
+                    reflected,
+                }
+            }
+
+            #[inline(always)]
+            unsafe fn extract_result<T: $crate::traits::ArchOps>(
+                vector: T::Vector,
+                reflected: bool,
+                ops: &T,
+            ) -> Self::Value
+            where
+                T::Vector: Copy,
+            {
+                let u64s = ops.extract_u64s(vector);
+                if reflected {
+                    ((u64s[0] as u32) & $mask) as Self::Value
+                } else {
+                    ((((u64s[1] >> 32) >> $shift) as u32) & $mask) as Self::Value
+                }
+            }
+
+            #[inline(always)]
+            unsafe fn fold_16<T: $crate::traits::ArchOps>(
+                state: &mut $crate::structs::CrcState<T::Vector>,
+                coeff: T::Vector,
+                data_to_xor: T::Vector,
+                ops: &T,
+            ) where
+                T::Vector: Copy,
+            {
+                $crate::crc32::width32_ops::fold_16(state, coeff, data_to_xor, ops)
+            }
+
+            #[inline(always)]
+            unsafe fn fold_width<T: $crate::traits::ArchOps>(
+                state: &mut $crate::structs::CrcState<T::Vector>,
+                high: u64,
+                low: u64,
+                ops: &T,
+            ) where
+                T::Vector: Copy,
+            {
+                $crate::crc32::width32_ops::fold_width(state, high, low, ops)
+            }
+
+            #[inline(always)]
+            unsafe fn barrett_reduction<T: $crate::traits::ArchOps>(
+                state: &$crate::structs::CrcState<T::Vector>,
+                poly: u64,
+                mu: u64,
+                ops: &T,
+            ) -> Self::Value
+            where
+                T::Vector: Copy,
+            {
+                let u64s = $crate::crc32::width32_ops::barrett_reduction(state, poly, mu, ops);
+                if state.reflected {
+                    ((u64s[1] as u32) & $mask) as Self::Value
+                } else {
+                    ((((u64s[0] >> 32) >> $shift) as u32) & $mask) as Self::Value
+                }
+            }
+
+            #[inline(always)]
+            unsafe fn create_coefficient<T: $crate::traits::ArchOps>(
+                high: u64,
+                low: u64,
+                _reflected: bool,
+                ops: &T,
+            ) -> T::Vector
+            where
+                T::Vector: Copy,
+            {
+                $crate::crc32::width32_ops::create_coefficient(high, low, ops)
+            }
+
+            #[inline(always)]
+            unsafe fn perform_final_reduction<T: $crate::traits::ArchOps>(
+                state: T::Vector,
+                reflected: bool,
+                keys: &[u64; 23],
+                ops: &T,
+            ) -> Self::Value
+            where
+                T::Vector: Copy,
+            {
+                let u64s = $crate::crc32::width32_ops::perform_final_reduction(
+                    state, reflected, keys, ops,
+                );
+                if reflected {
+                    ((u64s[1] as u32) & $mask) as Self::Value
+                } else {
+                    ((((u64s[0] >> 32) >> $shift) as u32) & $mask) as Self::Value
+                }
+            }
+
+            #[inline(always)]
+            fn get_last_bytes_table_ptr(
+                reflected: bool,
+                remaining_len: usize,
+            ) -> (*const u8, usize) {
+                $crate::crc32::width32_ops::get_last_bytes_table_ptr(reflected, remaining_len)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_scaled_width32;

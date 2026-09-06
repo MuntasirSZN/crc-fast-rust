@@ -126,10 +126,15 @@ fn create_stable_key_pointer(keys: &crate::CrcKeysStorage) -> (*const u64, u32) 
 pub struct CrcFastDigestHandle(*mut Digest);
 
 /// The supported CRC algorithms
+///
+/// Mirrors `CrcAlgorithm` by hand: the FFI enum must stay a plain `#[repr(C)]`
+/// definition for cbindgen, and `macro_rules!` cannot expand to enum variants.
+/// Both conversions are generated from one list (`impl_algorithm_conversions!`
+/// below), so only the declarations mirror.
+/// `CrcCustom` works with any supported width (5, 8, 16, 31, 32, 64).
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub enum CrcFastAlgorithm {
-    // CrcCustom works with any supported widths (16, 32, 64)
     CrcCustom,
     Crc16Arc,
     Crc16Cdma2000,
@@ -207,88 +212,106 @@ pub enum CrcFastAlgorithm {
     Crc64Xz,
 }
 
-// Convert from FFI enum to internal enum
-impl From<CrcFastAlgorithm> for CrcAlgorithm {
-    fn from(value: CrcFastAlgorithm) -> Self {
-        match value {
-            CrcFastAlgorithm::Crc16Arc => CrcAlgorithm::Crc16Arc,
-            CrcFastAlgorithm::Crc16Cdma2000 => CrcAlgorithm::Crc16Cdma2000,
-            CrcFastAlgorithm::Crc16Cms => CrcAlgorithm::Crc16Cms,
-            CrcFastAlgorithm::Crc16Dds110 => CrcAlgorithm::Crc16Dds110,
-            CrcFastAlgorithm::Crc16DectR => CrcAlgorithm::Crc16DectR,
-            CrcFastAlgorithm::Crc16DectX => CrcAlgorithm::Crc16DectX,
-            CrcFastAlgorithm::Crc16Dnp => CrcAlgorithm::Crc16Dnp,
-            CrcFastAlgorithm::Crc16En13757 => CrcAlgorithm::Crc16En13757,
-            CrcFastAlgorithm::Crc16Genibus => CrcAlgorithm::Crc16Genibus,
-            CrcFastAlgorithm::Crc16Gsm => CrcAlgorithm::Crc16Gsm,
-            CrcFastAlgorithm::Crc16Ibm3740 => CrcAlgorithm::Crc16Ibm3740,
-            CrcFastAlgorithm::Crc16IbmSdlc => CrcAlgorithm::Crc16IbmSdlc,
-            CrcFastAlgorithm::Crc16IsoIec144433A => CrcAlgorithm::Crc16IsoIec144433A,
-            CrcFastAlgorithm::Crc16Kermit => CrcAlgorithm::Crc16Kermit,
-            CrcFastAlgorithm::Crc16Lj1200 => CrcAlgorithm::Crc16Lj1200,
-            CrcFastAlgorithm::Crc16M17 => CrcAlgorithm::Crc16M17,
-            CrcFastAlgorithm::Crc16MaximDow => CrcAlgorithm::Crc16MaximDow,
-            CrcFastAlgorithm::Crc16Mcrf4xx => CrcAlgorithm::Crc16Mcrf4xx,
-            CrcFastAlgorithm::Crc16Modbus => CrcAlgorithm::Crc16Modbus,
-            CrcFastAlgorithm::Crc16Nrsc5 => CrcAlgorithm::Crc16Nrsc5,
-            CrcFastAlgorithm::Crc16OpensafetyA => CrcAlgorithm::Crc16OpensafetyA,
-            CrcFastAlgorithm::Crc16OpensafetyB => CrcAlgorithm::Crc16OpensafetyB,
-            CrcFastAlgorithm::Crc16Profibus => CrcAlgorithm::Crc16Profibus,
-            CrcFastAlgorithm::Crc16Riello => CrcAlgorithm::Crc16Riello,
-            CrcFastAlgorithm::Crc16SpiFujitsu => CrcAlgorithm::Crc16SpiFujitsu,
-            CrcFastAlgorithm::Crc16T10Dif => CrcAlgorithm::Crc16T10Dif,
-            CrcFastAlgorithm::Crc16Teledisk => CrcAlgorithm::Crc16Teledisk,
-            CrcFastAlgorithm::Crc16Tms37157 => CrcAlgorithm::Crc16Tms37157,
-            CrcFastAlgorithm::Crc16Umts => CrcAlgorithm::Crc16Umts,
-            CrcFastAlgorithm::Crc16Usb => CrcAlgorithm::Crc16Usb,
-            CrcFastAlgorithm::Crc16Xmodem => CrcAlgorithm::Crc16Xmodem,
-            CrcFastAlgorithm::Crc5Usb => CrcAlgorithm::Crc5Usb,
-            CrcFastAlgorithm::Crc5EpcC1G2 => CrcAlgorithm::Crc5EpcC1G2,
-            CrcFastAlgorithm::Crc5G704 => CrcAlgorithm::Crc5G704,
-            CrcFastAlgorithm::Crc8Smbus => CrcAlgorithm::Crc8Smbus,
-            CrcFastAlgorithm::Crc8I4321 => CrcAlgorithm::Crc8I4321,
-            CrcFastAlgorithm::Crc8Rohc => CrcAlgorithm::Crc8Rohc,
-            CrcFastAlgorithm::Crc8GsmA => CrcAlgorithm::Crc8GsmA,
-            CrcFastAlgorithm::Crc8MifareMad => CrcAlgorithm::Crc8MifareMad,
-            CrcFastAlgorithm::Crc8ICode => CrcAlgorithm::Crc8ICode,
-            CrcFastAlgorithm::Crc8Hitag => CrcAlgorithm::Crc8Hitag,
-            CrcFastAlgorithm::Crc8SaeJ1850 => CrcAlgorithm::Crc8SaeJ1850,
-            CrcFastAlgorithm::Crc8Tech3250 => CrcAlgorithm::Crc8Tech3250,
-            CrcFastAlgorithm::Crc8Opensafety => CrcAlgorithm::Crc8Opensafety,
-            CrcFastAlgorithm::Crc8Autosar => CrcAlgorithm::Crc8Autosar,
-            CrcFastAlgorithm::Crc8MaximDow => CrcAlgorithm::Crc8MaximDow,
-            CrcFastAlgorithm::Crc8Nrsc5 => CrcAlgorithm::Crc8Nrsc5,
-            CrcFastAlgorithm::Crc8Darc => CrcAlgorithm::Crc8Darc,
-            CrcFastAlgorithm::Crc8GsmB => CrcAlgorithm::Crc8GsmB,
-            CrcFastAlgorithm::Crc8Lte => CrcAlgorithm::Crc8Lte,
-            CrcFastAlgorithm::Crc8Wcdma => CrcAlgorithm::Crc8Wcdma,
-            CrcFastAlgorithm::Crc8Cdma2000 => CrcAlgorithm::Crc8Cdma2000,
-            CrcFastAlgorithm::Crc8Bluetooth => CrcAlgorithm::Crc8Bluetooth,
-            CrcFastAlgorithm::Crc8DvbS2 => CrcAlgorithm::Crc8DvbS2,
-            CrcFastAlgorithm::Crc31Philips => CrcAlgorithm::Crc31Philips,
-            CrcFastAlgorithm::Crc32Aixm => CrcAlgorithm::Crc32Aixm,
-            CrcFastAlgorithm::Crc32Autosar => CrcAlgorithm::Crc32Autosar,
-            CrcFastAlgorithm::Crc32Base91D => CrcAlgorithm::Crc32Base91D,
-            CrcFastAlgorithm::Crc32Bzip2 => CrcAlgorithm::Crc32Bzip2,
-            CrcFastAlgorithm::Crc32CdRomEdc => CrcAlgorithm::Crc32CdRomEdc,
-            CrcFastAlgorithm::Crc32Cksum => CrcAlgorithm::Crc32Cksum,
-            CrcFastAlgorithm::Crc32Iscsi => CrcAlgorithm::Crc32Iscsi,
-            CrcFastAlgorithm::Crc32IsoHdlc => CrcAlgorithm::Crc32IsoHdlc,
-            CrcFastAlgorithm::Crc32Jamcrc => CrcAlgorithm::Crc32Jamcrc,
-            CrcFastAlgorithm::Crc32Mef => CrcAlgorithm::Crc32Mef,
-            CrcFastAlgorithm::Crc32Mpeg2 => CrcAlgorithm::Crc32Mpeg2,
-            CrcFastAlgorithm::Crc32Xfer => CrcAlgorithm::Crc32Xfer,
-            CrcFastAlgorithm::CrcCustom => CrcAlgorithm::CrcCustom,
-            CrcFastAlgorithm::Crc64Ecma182 => CrcAlgorithm::Crc64Ecma182,
-            CrcFastAlgorithm::Crc64GoIso => CrcAlgorithm::Crc64GoIso,
-            CrcFastAlgorithm::Crc64Ms => CrcAlgorithm::Crc64Ms,
-            CrcFastAlgorithm::Crc64Nvme => CrcAlgorithm::Crc64Nvme,
-            CrcFastAlgorithm::Crc64Redis => CrcAlgorithm::Crc64Redis,
-            CrcFastAlgorithm::Crc64We => CrcAlgorithm::Crc64We,
-            CrcFastAlgorithm::Crc64Xz => CrcAlgorithm::Crc64Xz,
+/// Generates both algorithm-enum conversions from one variant list so they
+/// cannot drift. Item position: expands to two `From` impls with concrete
+/// match arms (no nested macro calls).
+macro_rules! impl_algorithm_conversions {
+    ([$($v:ident),* $(,)?]) => {
+        impl From<CrcFastAlgorithm> for CrcAlgorithm {
+            fn from(value: CrcFastAlgorithm) -> Self {
+                match value {
+                    $(CrcFastAlgorithm::$v => CrcAlgorithm::$v,)*
+                }
+            }
         }
-    }
+
+        impl From<CrcAlgorithm> for CrcFastAlgorithm {
+            fn from(value: CrcAlgorithm) -> Self {
+                match value {
+                    $(CrcAlgorithm::$v => CrcFastAlgorithm::$v,)*
+                }
+            }
+        }
+    };
 }
+
+impl_algorithm_conversions!([
+    CrcCustom,
+    Crc16Arc,
+    Crc16Cdma2000,
+    Crc16Cms,
+    Crc16Dds110,
+    Crc16DectR,
+    Crc16DectX,
+    Crc16Dnp,
+    Crc16En13757,
+    Crc16Genibus,
+    Crc16Gsm,
+    Crc16Ibm3740,
+    Crc16IbmSdlc,
+    Crc16IsoIec144433A,
+    Crc16Kermit,
+    Crc16Lj1200,
+    Crc16M17,
+    Crc16MaximDow,
+    Crc16Mcrf4xx,
+    Crc16Modbus,
+    Crc16Nrsc5,
+    Crc16OpensafetyA,
+    Crc16OpensafetyB,
+    Crc16Profibus,
+    Crc16Riello,
+    Crc16SpiFujitsu,
+    Crc16T10Dif,
+    Crc16Teledisk,
+    Crc16Tms37157,
+    Crc16Umts,
+    Crc16Usb,
+    Crc16Xmodem,
+    Crc5Usb,
+    Crc5EpcC1G2,
+    Crc5G704,
+    Crc8Smbus,
+    Crc8I4321,
+    Crc8Rohc,
+    Crc8GsmA,
+    Crc8MifareMad,
+    Crc8ICode,
+    Crc8Hitag,
+    Crc8SaeJ1850,
+    Crc8Tech3250,
+    Crc8Opensafety,
+    Crc8Autosar,
+    Crc8MaximDow,
+    Crc8Nrsc5,
+    Crc8Darc,
+    Crc8GsmB,
+    Crc8Lte,
+    Crc8Wcdma,
+    Crc8Cdma2000,
+    Crc8Bluetooth,
+    Crc8DvbS2,
+    Crc31Philips,
+    Crc32Aixm,
+    Crc32Autosar,
+    Crc32Base91D,
+    Crc32Bzip2,
+    Crc32CdRomEdc,
+    Crc32Cksum,
+    Crc32Iscsi,
+    Crc32IsoHdlc,
+    Crc32Jamcrc,
+    Crc32Mef,
+    Crc32Mpeg2,
+    Crc32Xfer,
+    Crc64Ecma182,
+    Crc64GoIso,
+    Crc64Ms,
+    Crc64Nvme,
+    Crc64Redis,
+    Crc64We,
+    Crc64Xz,
+]);
 
 /// Gets the last error that occurred in the current thread
 /// Returns CrcFastError::Success if no error has occurred
@@ -359,24 +382,7 @@ fn try_params_from_ffi(value: &CrcFastParams) -> Option<CrcParams> {
     };
 
     // For reflected CRCs, bit-reverse the init value for the SIMD algorithm
-    let init_algorithm = if value.refin {
-        match value.width {
-            5 => {
-                let mut rev = 0u8;
-                let init_u8 = value.init as u8;
-                for i in 0..5 {
-                    if (init_u8 >> i) & 1 == 1 {
-                        rev |= 1 << (4 - i);
-                    }
-                }
-                rev as u64
-            }
-            16 => (value.init as u16).reverse_bits() as u64,
-            _ => value.init,
-        }
-    } else {
-        value.init
-    };
+    let init_algorithm = crate::structs::reflected_init(value.refin, value.width, value.init);
 
     Some(CrcParams {
         algorithm: value.algorithm.into(),
@@ -409,83 +415,7 @@ impl From<CrcParams> for CrcFastParams {
         let (keys_ptr, key_count) = create_stable_key_pointer(&params.keys);
 
         CrcFastParams {
-            algorithm: match params.algorithm {
-                CrcAlgorithm::Crc16Arc => CrcFastAlgorithm::Crc16Arc,
-                CrcAlgorithm::Crc16Cdma2000 => CrcFastAlgorithm::Crc16Cdma2000,
-                CrcAlgorithm::Crc16Cms => CrcFastAlgorithm::Crc16Cms,
-                CrcAlgorithm::Crc16Dds110 => CrcFastAlgorithm::Crc16Dds110,
-                CrcAlgorithm::Crc16DectR => CrcFastAlgorithm::Crc16DectR,
-                CrcAlgorithm::Crc16DectX => CrcFastAlgorithm::Crc16DectX,
-                CrcAlgorithm::Crc16Dnp => CrcFastAlgorithm::Crc16Dnp,
-                CrcAlgorithm::Crc16En13757 => CrcFastAlgorithm::Crc16En13757,
-                CrcAlgorithm::Crc16Genibus => CrcFastAlgorithm::Crc16Genibus,
-                CrcAlgorithm::Crc16Gsm => CrcFastAlgorithm::Crc16Gsm,
-                CrcAlgorithm::Crc16Ibm3740 => CrcFastAlgorithm::Crc16Ibm3740,
-                CrcAlgorithm::Crc16IbmSdlc => CrcFastAlgorithm::Crc16IbmSdlc,
-                CrcAlgorithm::Crc16IsoIec144433A => CrcFastAlgorithm::Crc16IsoIec144433A,
-                CrcAlgorithm::Crc16Kermit => CrcFastAlgorithm::Crc16Kermit,
-                CrcAlgorithm::Crc16Lj1200 => CrcFastAlgorithm::Crc16Lj1200,
-                CrcAlgorithm::Crc16M17 => CrcFastAlgorithm::Crc16M17,
-                CrcAlgorithm::Crc16MaximDow => CrcFastAlgorithm::Crc16MaximDow,
-                CrcAlgorithm::Crc16Mcrf4xx => CrcFastAlgorithm::Crc16Mcrf4xx,
-                CrcAlgorithm::Crc16Modbus => CrcFastAlgorithm::Crc16Modbus,
-                CrcAlgorithm::Crc16Nrsc5 => CrcFastAlgorithm::Crc16Nrsc5,
-                CrcAlgorithm::Crc16OpensafetyA => CrcFastAlgorithm::Crc16OpensafetyA,
-                CrcAlgorithm::Crc16OpensafetyB => CrcFastAlgorithm::Crc16OpensafetyB,
-                CrcAlgorithm::Crc16Profibus => CrcFastAlgorithm::Crc16Profibus,
-                CrcAlgorithm::Crc16Riello => CrcFastAlgorithm::Crc16Riello,
-                CrcAlgorithm::Crc16SpiFujitsu => CrcFastAlgorithm::Crc16SpiFujitsu,
-                CrcAlgorithm::Crc16T10Dif => CrcFastAlgorithm::Crc16T10Dif,
-                CrcAlgorithm::Crc16Teledisk => CrcFastAlgorithm::Crc16Teledisk,
-                CrcAlgorithm::Crc16Tms37157 => CrcFastAlgorithm::Crc16Tms37157,
-                CrcAlgorithm::Crc16Umts => CrcFastAlgorithm::Crc16Umts,
-                CrcAlgorithm::Crc16Usb => CrcFastAlgorithm::Crc16Usb,
-                CrcAlgorithm::Crc16Xmodem => CrcFastAlgorithm::Crc16Xmodem,
-                CrcAlgorithm::Crc5Usb => CrcFastAlgorithm::Crc5Usb,
-                CrcAlgorithm::Crc5EpcC1G2 => CrcFastAlgorithm::Crc5EpcC1G2,
-                CrcAlgorithm::Crc5G704 => CrcFastAlgorithm::Crc5G704,
-                CrcAlgorithm::Crc8Smbus => CrcFastAlgorithm::Crc8Smbus,
-                CrcAlgorithm::Crc8I4321 => CrcFastAlgorithm::Crc8I4321,
-                CrcAlgorithm::Crc8Rohc => CrcFastAlgorithm::Crc8Rohc,
-                CrcAlgorithm::Crc8GsmA => CrcFastAlgorithm::Crc8GsmA,
-                CrcAlgorithm::Crc8MifareMad => CrcFastAlgorithm::Crc8MifareMad,
-                CrcAlgorithm::Crc8ICode => CrcFastAlgorithm::Crc8ICode,
-                CrcAlgorithm::Crc8Hitag => CrcFastAlgorithm::Crc8Hitag,
-                CrcAlgorithm::Crc8SaeJ1850 => CrcFastAlgorithm::Crc8SaeJ1850,
-                CrcAlgorithm::Crc8Tech3250 => CrcFastAlgorithm::Crc8Tech3250,
-                CrcAlgorithm::Crc8Opensafety => CrcFastAlgorithm::Crc8Opensafety,
-                CrcAlgorithm::Crc8Autosar => CrcFastAlgorithm::Crc8Autosar,
-                CrcAlgorithm::Crc8MaximDow => CrcFastAlgorithm::Crc8MaximDow,
-                CrcAlgorithm::Crc8Nrsc5 => CrcFastAlgorithm::Crc8Nrsc5,
-                CrcAlgorithm::Crc8Darc => CrcFastAlgorithm::Crc8Darc,
-                CrcAlgorithm::Crc8GsmB => CrcFastAlgorithm::Crc8GsmB,
-                CrcAlgorithm::Crc8Lte => CrcFastAlgorithm::Crc8Lte,
-                CrcAlgorithm::Crc8Wcdma => CrcFastAlgorithm::Crc8Wcdma,
-                CrcAlgorithm::Crc8Cdma2000 => CrcFastAlgorithm::Crc8Cdma2000,
-                CrcAlgorithm::Crc8Bluetooth => CrcFastAlgorithm::Crc8Bluetooth,
-                CrcAlgorithm::Crc8DvbS2 => CrcFastAlgorithm::Crc8DvbS2,
-                CrcAlgorithm::Crc31Philips => CrcFastAlgorithm::Crc31Philips,
-                CrcAlgorithm::Crc32Aixm => CrcFastAlgorithm::Crc32Aixm,
-                CrcAlgorithm::Crc32Autosar => CrcFastAlgorithm::Crc32Autosar,
-                CrcAlgorithm::Crc32Base91D => CrcFastAlgorithm::Crc32Base91D,
-                CrcAlgorithm::Crc32Bzip2 => CrcFastAlgorithm::Crc32Bzip2,
-                CrcAlgorithm::Crc32CdRomEdc => CrcFastAlgorithm::Crc32CdRomEdc,
-                CrcAlgorithm::Crc32Cksum => CrcFastAlgorithm::Crc32Cksum,
-                CrcAlgorithm::Crc32Iscsi => CrcFastAlgorithm::Crc32Iscsi,
-                CrcAlgorithm::Crc32IsoHdlc => CrcFastAlgorithm::Crc32IsoHdlc,
-                CrcAlgorithm::Crc32Jamcrc => CrcFastAlgorithm::Crc32Jamcrc,
-                CrcAlgorithm::Crc32Mef => CrcFastAlgorithm::Crc32Mef,
-                CrcAlgorithm::Crc32Mpeg2 => CrcFastAlgorithm::Crc32Mpeg2,
-                CrcAlgorithm::Crc32Xfer => CrcFastAlgorithm::Crc32Xfer,
-                CrcAlgorithm::CrcCustom => CrcFastAlgorithm::CrcCustom,
-                CrcAlgorithm::Crc64Ecma182 => CrcFastAlgorithm::Crc64Ecma182,
-                CrcAlgorithm::Crc64GoIso => CrcFastAlgorithm::Crc64GoIso,
-                CrcAlgorithm::Crc64Ms => CrcFastAlgorithm::Crc64Ms,
-                CrcAlgorithm::Crc64Nvme => CrcFastAlgorithm::Crc64Nvme,
-                CrcAlgorithm::Crc64Redis => CrcFastAlgorithm::Crc64Redis,
-                CrcAlgorithm::Crc64We => CrcFastAlgorithm::Crc64We,
-                CrcAlgorithm::Crc64Xz => CrcFastAlgorithm::Crc64Xz,
-            },
+            algorithm: params.algorithm.into(),
             width: params.width,
             poly: params.poly,
             init: params.init,
@@ -499,13 +429,19 @@ impl From<CrcParams> for CrcFastParams {
     }
 }
 
+/// Allocates a `Digest` on the heap and leaks a handle to it for FFI.
+/// Single source for the allocate-wrap-leak tail shared by every
+/// `crc_fast_digest_new*` constructor.
+fn leak_digest_handle(digest: Digest) -> *mut CrcFastDigestHandle {
+    let raw = Box::into_raw(Box::new(digest));
+    Box::into_raw(Box::new(CrcFastDigestHandle(raw)))
+}
+
 /// Creates a new Digest to compute CRC checksums using algorithm
 #[no_mangle]
 pub extern "C" fn crc_fast_digest_new(algorithm: CrcFastAlgorithm) -> *mut CrcFastDigestHandle {
     clear_last_error();
-    let digest = Box::new(Digest::new(algorithm.into()));
-    let handle = Box::new(CrcFastDigestHandle(Box::into_raw(digest)));
-    Box::into_raw(handle)
+    leak_digest_handle(Digest::new(algorithm.into()))
 }
 
 /// Creates a new Digest with a custom initial state
@@ -515,9 +451,7 @@ pub extern "C" fn crc_fast_digest_new_with_init_state(
     init_state: u64,
 ) -> *mut CrcFastDigestHandle {
     clear_last_error();
-    let digest = Box::new(Digest::new_with_init_state(algorithm.into(), init_state));
-    let handle = Box::new(CrcFastDigestHandle(Box::into_raw(digest)));
-    Box::into_raw(handle)
+    leak_digest_handle(Digest::new_with_init_state(algorithm.into(), init_state))
 }
 
 /// Creates a new Digest to compute CRC checksums using custom parameters
@@ -529,11 +463,7 @@ pub extern "C" fn crc_fast_digest_new_with_params(
 ) -> *mut CrcFastDigestHandle {
     clear_last_error();
     match try_params_from_ffi(&params) {
-        Some(crc_params) => {
-            let digest = Box::new(Digest::new_with_params(crc_params));
-            let handle = Box::new(CrcFastDigestHandle(Box::into_raw(digest)));
-            Box::into_raw(handle)
-        }
+        Some(crc_params) => leak_digest_handle(Digest::new_with_params(crc_params)),
         None => {
             // Set appropriate error based on the failure
             if params.keys.is_null() {
@@ -1208,7 +1138,8 @@ mod tests {
             0xcbf43926,
         );
         assert!(!named.keys.is_null());
-        let bad_bytes = [0xffu8, 0xfe];
+        // NUL-terminated but invalid UTF-8: CStr::from_ptr needs the terminator.
+        let bad_bytes = [0xffu8, 0x00];
         let _bad_name = crc_fast_get_custom_params(
             bad_bytes.as_ptr() as *const c_char,
             32,
@@ -1233,7 +1164,7 @@ mod tests {
     }
 
     #[test]
-    fn checksum_combine_and_file_error_paths() {
+    fn checksum_combine_matches_rust() {
         let first = crate::checksum(CrcAlgorithm::Crc32IsoHdlc, b"1234");
         let second = crate::checksum(CrcAlgorithm::Crc32IsoHdlc, b"56789");
         assert_eq!(
@@ -1270,7 +1201,11 @@ mod tests {
             ),
             0xcbf43926
         );
+    }
 
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn checksum_file_error_paths() {
         let missing = CString::new("/definitely/not/here/crc-fast-missing.txt").unwrap();
         let miss_bytes = missing.to_bytes();
         assert_eq!(

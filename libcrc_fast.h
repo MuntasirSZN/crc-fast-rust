@@ -45,6 +45,12 @@ typedef enum CrcFastError {
 
 /**
  * The supported CRC algorithms
+ *
+ * Mirrors `CrcAlgorithm` by hand: the FFI enum must stay a plain `#[repr(C)]`
+ * definition for cbindgen, and `macro_rules!` cannot expand to enum variants.
+ * Both conversions are generated from one list (`impl_algorithm_conversions!`
+ * below), so only the declarations mirror.
+ * `CrcCustom` works with any supported width (5, 8, 16, 31, 32, 64).
  */
 typedef enum CrcFastAlgorithm {
   CrcCustom,

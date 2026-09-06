@@ -119,31 +119,8 @@ use core::ops::{BitAnd, BitOr, Shl, Shr};
 /// and then scaling the result back to 16 bits.
 ///
 /// See CRC32_EXPONENTS for detailed documentation of the exponent values.
-const CRC16_EXPONENTS: [u64; 23] = [
-    0, // unused, just aligns indexes with the literature
-    32 * 3,
-    32 * 5,
-    32 * 31,
-    32 * 33,
-    32 * 3,
-    32 * 2,
-    0, // mu, generate separately
-    0, // poly, generate separately
-    32 * 27,
-    32 * 29,
-    32 * 23,
-    32 * 25,
-    32 * 19,
-    32 * 21,
-    32 * 15,
-    32 * 17,
-    32 * 11,
-    32 * 13,
-    32 * 7,
-    32 * 9,
-    32 * 63, // for 256 byte distances (2048 - 32)
-    32 * 65, // for 256 byte distances (2048 + 32)
-];
+/// Identical values: CRC-16 is computed in 32-bit space, like CRC-5/8/31.
+const CRC16_EXPONENTS: [u64; 23] = CRC32_EXPONENTS;
 
 /// Exponents (bit distances) for CRC-32 key generation.
 ///
@@ -315,42 +292,11 @@ fn key(width: u8, poly: u64, reflected: bool, exponent: u64) -> u64 {
     }
 }
 
-/// Computes a CRC-16 folding key for a given bit distance (exponent).
+/// Computes a CRC-16 folding key.
 ///
-/// # Algorithm
-///
-/// CRC-16 key generation uses the same algorithm as CRC-32 because CRC-16 computation
-/// is performed by scaling 16-bit values to 32-bit space. The polynomial is already
-/// scaled to 32-bit space (poly << 16 | 1 << 32) before this function is called.
-///
-/// 1. Start with x^32 (represented as 0x080000000, bit 35 set)
-/// 2. Multiply by x repeatedly (left shift), reducing modulo P(x) each time
-/// 3. After (exponent - 31) iterations, we have x^exponent mod P(x)
-///
-/// # Reflection
-///
-/// For reflected CRC-16, we bit-reverse the 16-bit result and shift right by 31 bits
-/// to align it properly for PCLMULQDQ operations.
+/// CRC-16 scaled to 32-bit uses same algorithm as CRC-32 (see `crc32_key`).
 fn crc16_key(exponent: u64, reflected: bool, polynomial: u64) -> u64 {
-    if exponent < 32 {
-        return 0;
-    }
-
-    let mut n: u64 = 0x080000000;
-    let e = exponent - 31;
-
-    for _ in 0..e {
-        n <<= 1;
-        if (n & 0x100000000) != 0 {
-            n ^= polynomial;
-        }
-    }
-
-    if reflected {
-        bit_reverse(n) >> 31
-    } else {
-        n << 32
-    }
+    crc32_key(exponent, reflected, polynomial)
 }
 
 fn crc5_key(exponent: u64, reflected: bool, polynomial: u64) -> u64 {
@@ -633,40 +579,9 @@ fn mu(width: u8, polynomial: u64, reflected: bool) -> u64 {
 
 /// Computes the Barrett reduction constant (μ) for CRC-16.
 ///
-/// # What Is μ (Mu)?
-///
-/// Mu is used in Barrett reduction for fast modular reduction without division.
-/// For CRC-16 operations (scaled to 32-bit space), μ = floor(x^64 / P(x)).
-///
-/// # Algorithm
-///
-/// This uses the same algorithm as CRC-32 mu calculation because CRC-16 is
-/// computed in 32-bit space. The polynomial is already scaled (poly << 16 | 1 << 32).
-///
-/// 1. Start with x^64 (represented as 0x100000000, bit 32 set)
-/// 2. For each bit position from MSB down:
-///    - If the dividend has a bit at position 32, record a 1 in quotient
-///    - XOR the dividend with the polynomial
-///    - Shift dividend left
-/// 3. After 33 iterations, q contains μ
+/// CRC-16 scaled to 32-bit uses same mu as CRC-32 (see `crc32_mu`).
 fn crc16_mu(polynomial: u64, reflected: bool) -> u64 {
-    let mut n: u64 = 0x100000000;
-    let mut q: u64 = 0;
-
-    for _ in 0..33 {
-        q <<= 1;
-        if n & 0x100000000 != 0 {
-            q |= 1;
-            n ^= polynomial;
-        }
-        n <<= 1;
-    }
-
-    if reflected {
-        bit_reverse(q) >> 31
-    } else {
-        q
-    }
+    crc32_mu(polynomial, reflected)
 }
 
 fn crc5_mu(polynomial: u64, reflected: bool) -> u64 {

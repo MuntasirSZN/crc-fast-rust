@@ -12,6 +12,37 @@ mod structs;
 
 use proptest::test_runner::Config as ProptestConfig;
 
+/// Builds `CrcParams` from a catalogue test config, mirroring how users
+/// construct custom params from Rocksoft parameters.
+pub(crate) fn params_from_test_config(
+    config: &'static crate::test::enums::AnyCrcTestConfig,
+) -> crate::CrcParams {
+    crate::CrcParams::new(
+        config.get_name(),
+        config.get_width(),
+        config.get_poly(),
+        config.get_init(),
+        config.get_refin(),
+        config.get_xorout(),
+        config.get_check(),
+    )
+}
+
+/// Asserts `CrcParams` fields match the catalogue test config they were built from.
+pub(crate) fn assert_params_match_config(
+    params: &crate::CrcParams,
+    config: &crate::test::enums::AnyCrcTestConfig,
+) {
+    assert_eq!(params.name, config.get_name());
+    assert_eq!(params.width, config.get_width());
+    assert_eq!(params.poly, config.get_poly());
+    assert_eq!(params.init, config.get_init());
+    assert_eq!(params.refin, config.get_refin());
+    assert_eq!(params.refout, config.get_refin());
+    assert_eq!(params.xorout, config.get_xorout());
+    assert_eq!(params.check, config.get_check());
+}
+
 /// Returns a proptest config that works under Miri by disabling file-based failure persistence.
 /// Miri runs with isolation enabled by default, which blocks getcwd() calls that proptest
 /// uses for its failure persistence feature.
