@@ -210,3 +210,151 @@ impl DataChunkProcessor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::CrcAlgorithm;
+    use core::str::FromStr;
+
+    fn all_non_custom_algorithms() -> Vec<CrcAlgorithm> {
+        vec![
+            CrcAlgorithm::Crc16Arc,
+            CrcAlgorithm::Crc16Cdma2000,
+            CrcAlgorithm::Crc16Cms,
+            CrcAlgorithm::Crc16Dds110,
+            CrcAlgorithm::Crc16DectR,
+            CrcAlgorithm::Crc16DectX,
+            CrcAlgorithm::Crc16Dnp,
+            CrcAlgorithm::Crc16En13757,
+            CrcAlgorithm::Crc16Genibus,
+            CrcAlgorithm::Crc16Gsm,
+            CrcAlgorithm::Crc16Ibm3740,
+            CrcAlgorithm::Crc16IbmSdlc,
+            CrcAlgorithm::Crc16IsoIec144433A,
+            CrcAlgorithm::Crc16Kermit,
+            CrcAlgorithm::Crc16Lj1200,
+            CrcAlgorithm::Crc16M17,
+            CrcAlgorithm::Crc16MaximDow,
+            CrcAlgorithm::Crc16Mcrf4xx,
+            CrcAlgorithm::Crc16Modbus,
+            CrcAlgorithm::Crc16Nrsc5,
+            CrcAlgorithm::Crc16OpensafetyA,
+            CrcAlgorithm::Crc16OpensafetyB,
+            CrcAlgorithm::Crc16Profibus,
+            CrcAlgorithm::Crc16Riello,
+            CrcAlgorithm::Crc16SpiFujitsu,
+            CrcAlgorithm::Crc16T10Dif,
+            CrcAlgorithm::Crc16Teledisk,
+            CrcAlgorithm::Crc16Tms37157,
+            CrcAlgorithm::Crc16Umts,
+            CrcAlgorithm::Crc16Usb,
+            CrcAlgorithm::Crc16Xmodem,
+            CrcAlgorithm::Crc5Usb,
+            CrcAlgorithm::Crc5EpcC1G2,
+            CrcAlgorithm::Crc5G704,
+            CrcAlgorithm::Crc8Smbus,
+            CrcAlgorithm::Crc8I4321,
+            CrcAlgorithm::Crc8Rohc,
+            CrcAlgorithm::Crc8GsmA,
+            CrcAlgorithm::Crc8MifareMad,
+            CrcAlgorithm::Crc8ICode,
+            CrcAlgorithm::Crc8Hitag,
+            CrcAlgorithm::Crc8SaeJ1850,
+            CrcAlgorithm::Crc8Tech3250,
+            CrcAlgorithm::Crc8Opensafety,
+            CrcAlgorithm::Crc8Autosar,
+            CrcAlgorithm::Crc8MaximDow,
+            CrcAlgorithm::Crc8Nrsc5,
+            CrcAlgorithm::Crc8Darc,
+            CrcAlgorithm::Crc8GsmB,
+            CrcAlgorithm::Crc8Lte,
+            CrcAlgorithm::Crc8Wcdma,
+            CrcAlgorithm::Crc8Cdma2000,
+            CrcAlgorithm::Crc8Bluetooth,
+            CrcAlgorithm::Crc8DvbS2,
+            CrcAlgorithm::Crc31Philips,
+            CrcAlgorithm::Crc32Aixm,
+            CrcAlgorithm::Crc32Autosar,
+            CrcAlgorithm::Crc32Base91D,
+            CrcAlgorithm::Crc32Bzip2,
+            CrcAlgorithm::Crc32CdRomEdc,
+            CrcAlgorithm::Crc32Cksum,
+            CrcAlgorithm::Crc32Iscsi,
+            CrcAlgorithm::Crc32IsoHdlc,
+            CrcAlgorithm::Crc32Jamcrc,
+            CrcAlgorithm::Crc32Mef,
+            CrcAlgorithm::Crc32Mpeg2,
+            CrcAlgorithm::Crc32Xfer,
+            CrcAlgorithm::Crc64Ecma182,
+            CrcAlgorithm::Crc64GoIso,
+            CrcAlgorithm::Crc64Ms,
+            CrcAlgorithm::Crc64Nvme,
+            CrcAlgorithm::Crc64Redis,
+            CrcAlgorithm::Crc64We,
+            CrcAlgorithm::Crc64Xz,
+        ]
+    }
+
+    #[test]
+    fn display_fromstr_roundtrip_all_algorithms() {
+        for algorithm in all_non_custom_algorithms() {
+            let name = algorithm.to_string();
+            assert!(!name.is_empty(), "{algorithm:?} displayed empty");
+            assert_eq!(
+                CrcAlgorithm::from_str(&name),
+                Ok(algorithm),
+                "round-trip failed for {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn display_spot_checks_canonical_names() {
+        assert_eq!(CrcAlgorithm::Crc16Arc.to_string(), "CRC-16/ARC");
+        assert_eq!(CrcAlgorithm::Crc5Usb.to_string(), "CRC-5/USB");
+        assert_eq!(CrcAlgorithm::Crc8Smbus.to_string(), "CRC-8/SMBUS");
+        assert_eq!(CrcAlgorithm::Crc31Philips.to_string(), "CRC-31/PHILIPS");
+        assert_eq!(CrcAlgorithm::Crc32IsoHdlc.to_string(), "CRC-32/ISO-HDLC");
+        assert_eq!(CrcAlgorithm::Crc64Nvme.to_string(), "CRC-64/NVME");
+        assert_eq!(CrcAlgorithm::CrcCustom.to_string(), "CRC/CUSTOM");
+    }
+
+    #[test]
+    fn fromstr_aliases_resolve_to_canonical() {
+        // Catalogue alias: X-25 shares params with IBM-SDLC.
+        assert_eq!(
+            CrcAlgorithm::from_str("CRC-16/X-25"),
+            Ok(CrcAlgorithm::Crc16IbmSdlc)
+        );
+        assert_eq!(
+            CrcAlgorithm::from_str("CRC-16/CCITT-FALSE"),
+            Ok(CrcAlgorithm::Crc16Ibm3740)
+        );
+        assert_eq!(
+            CrcAlgorithm::from_str("CRC-16/CCITT-TRUE"),
+            Ok(CrcAlgorithm::Crc16Kermit)
+        );
+        assert_eq!(
+            CrcAlgorithm::from_str("CRC-32"),
+            Ok(CrcAlgorithm::Crc32IsoHdlc)
+        );
+        assert_eq!(
+            CrcAlgorithm::from_str("CRC-32C"),
+            Ok(CrcAlgorithm::Crc32Iscsi)
+        );
+        assert_eq!(
+            CrcAlgorithm::from_str("CRC-32/CASTAGNOLI"),
+            Ok(CrcAlgorithm::Crc32Iscsi)
+        );
+    }
+
+    #[test]
+    fn fromstr_rejects_unknown_and_custom() {
+        assert_eq!(CrcAlgorithm::from_str(""), Err(()));
+        assert_eq!(CrcAlgorithm::from_str("bogus"), Err(()));
+        assert_eq!(CrcAlgorithm::from_str("CRC/CUSTOM"), Err(()));
+        // Names are case-sensitive.
+        assert_eq!(CrcAlgorithm::from_str("crc-32/iso-hdlc"), Err(()));
+        assert_eq!(CrcAlgorithm::from_str("CRC-32/ISO-HDLC "), Err(()));
+    }
+}

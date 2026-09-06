@@ -187,3 +187,29 @@ fn bit_reverse(mut forward: u64) -> u64 {
 
     reversed
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{params_for_algorithm, CrcAlgorithm};
+
+    #[test]
+    fn mismatched_refin_refout_combine_returns_zero() {
+        let mut mismatched = params_for_algorithm(CrcAlgorithm::Crc32IsoHdlc);
+        // CrcParams::new() only builds matched pairs; force the unsupported mix.
+        mismatched.refin = true;
+        mismatched.refout = false;
+        assert_eq!(checksums(0xcbf43926, 0x12345678, 5, &mismatched), 0);
+    }
+
+    #[test]
+    fn combine_split_matches_single_pass() {
+        let params = params_for_algorithm(CrcAlgorithm::Crc32IsoHdlc);
+        let first = crate::checksum(CrcAlgorithm::Crc32IsoHdlc, b"1234");
+        let second = crate::checksum(CrcAlgorithm::Crc32IsoHdlc, b"56789");
+        assert_eq!(
+            checksums(first, second, 5, &params),
+            crate::checksum(CrcAlgorithm::Crc32IsoHdlc, b"123456789")
+        );
+    }
+}

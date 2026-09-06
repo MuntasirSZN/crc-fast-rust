@@ -285,3 +285,60 @@ impl CrcParams {
         self.keys.key_count()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::CrcAlgorithm;
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn try_new_accepts_supported_width_and_computes_check() {
+        let params = CrcParams::try_new(
+            "CRC-32/CUSTOM-HDLC",
+            32,
+            0x04c11db7,
+            0xffffffff,
+            true,
+            0xffffffff,
+            0xcbf43926,
+        )
+        .expect("supported width must succeed");
+        assert_eq!(params.width, 32);
+        assert_eq!(params.algorithm, CrcAlgorithm::CrcCustom);
+        assert_eq!(
+            crate::checksum_with_params(params, b"123456789"),
+            0xcbf43926
+        );
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn try_new_rejects_unsupported_width() {
+        let result = CrcParams::try_new("BAD", 7, 0x07, 0x00, false, 0x00, 0x00);
+        assert!(result.is_err(), "width 7 must be rejected");
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn try_new_reverses_init_for_reflected_narrow_widths() {
+        // 0x01 reflected across 8 bits is 0x80.
+        let reflected =
+            CrcParams::try_new("R8", 8, 0x07, 0x01, true, 0x00, 0x00).expect("width 8 supported");
+        assert_eq!(reflected.init_algorithm, 0x80);
+
+        let forward =
+            CrcParams::try_new("F8", 8, 0x07, 0x01, false, 0x00, 0x00).expect("width 8 supported");
+        assert_eq!(forward.init_algorithm, 0x01);
+    }
+
+    #[test]
+    fn new_with_unsupported_width_is_panic_free_with_zeroed_keys() {
+        let params = CrcParams::new("BAD", 7, 0x07, 0x00, false, 0x00, 0x00);
+        assert_eq!(params.width, 7);
+        assert_eq!(params.algorithm, CrcAlgorithm::CrcCustom);
+        assert_eq!(params.key_count(), 23);
+        assert_eq!(params.get_key(0), 0);
+        assert_eq!(params.get_key_checked(23), None);
+    }
+}

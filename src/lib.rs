@@ -2137,4 +2137,115 @@ mod lib {
         assert_eq!(storage_256.get_key(usize::MAX), 0);
         assert_eq!(storage_future.get_key(usize::MAX), 0);
     }
+
+    #[test]
+    fn test_checksum_file_missing_returns_err() {
+        let missing = "/definitely/not/here/crc-fast-missing.txt";
+        assert!(checksum_file(CrcAlgorithm::Crc32IsoHdlc, missing, None).is_err());
+        let params = params_for_algorithm(CrcAlgorithm::Crc32IsoHdlc);
+        assert!(checksum_file_with_params(params, missing, None).is_err());
+    }
+
+    #[test]
+    fn test_checksum_file_custom_chunk_size_matches() {
+        let file_path = std::env::current_dir()
+            .expect("missing working dir")
+            .join("crc-check.txt");
+        let file_on_disk = file_path.to_str().unwrap();
+        for chunk_size in [Some(1usize), Some(7usize), Some(524288usize)] {
+            assert_eq!(
+                checksum_file(CrcAlgorithm::Crc32IsoHdlc, file_on_disk, chunk_size).unwrap(),
+                0xcbf43926
+            );
+        }
+    }
+
+    #[test]
+    fn test_width_and_params_for_algorithm() {
+        assert_eq!(width_for_algorithm(CrcAlgorithm::Crc5Usb), 5);
+        assert_eq!(width_for_algorithm(CrcAlgorithm::Crc8Smbus), 8);
+        assert_eq!(width_for_algorithm(CrcAlgorithm::Crc16Arc), 16);
+        assert_eq!(width_for_algorithm(CrcAlgorithm::Crc31Philips), 31);
+        assert_eq!(width_for_algorithm(CrcAlgorithm::Crc32IsoHdlc), 32);
+        assert_eq!(width_for_algorithm(CrcAlgorithm::Crc64Nvme), 64);
+
+        let iso_hdlc = params_for_algorithm(CrcAlgorithm::Crc32IsoHdlc);
+        assert_eq!(iso_hdlc.width, 32);
+        assert_eq!(iso_hdlc.poly, 0x04c11db7);
+        assert_eq!(iso_hdlc.check, 0xcbf43926);
+        let nvme = params_for_algorithm(CrcAlgorithm::Crc64Nvme);
+        assert_eq!(nvme.width, 64);
+        assert_eq!(nvme.check, crate::crc64::consts::CRC64_NVME.check);
+    }
+
+    #[test]
+    fn test_digest_new_with_init_state_changes_checksum() {
+        let mut default_digest = Digest::new(CrcAlgorithm::Crc32IsoHdlc);
+        default_digest.update(b"123456789");
+        assert_eq!(default_digest.finalize(), 0xcbf43926);
+
+        let mut zero_state = Digest::new_with_init_state(CrcAlgorithm::Crc32IsoHdlc, 0x00000000);
+        zero_state.update(b"123456789");
+        assert_eq!(zero_state.finalize(), 0xd202d277);
+
+        let mut same_state = Digest::new_with_init_state(CrcAlgorithm::Crc32IsoHdlc, 0xffffffff);
+        same_state.update(b"123456789");
+        assert_eq!(same_state.finalize(), 0xcbf43926);
+    }
+
+    #[test]
+    fn test_digest_amount_and_state_tracking() {
+        let mut digest = Digest::new(CrcAlgorithm::Crc32IsoHdlc);
+        assert_eq!(digest.get_amount(), 0);
+        digest.update(b"1234");
+        assert_eq!(digest.get_amount(), 4);
+        digest.update(b"56789");
+        assert_eq!(digest.get_amount(), 9);
+        // Non-finalized state from the documented example.
+        assert_eq!(digest.get_state(), 0x340bc6d9);
+        assert_eq!(digest.finalize(), 0xcbf43926);
+    }
+
+    #[test]
+    fn test_digest_dyn_finalize_into_rejects_wrong_size() {
+        let mut digest = Digest::new(CrcAlgorithm::Crc32IsoHdlc);
+        digest.update(TEST_CHECK_STRING);
+        assert_eq!(digest.output_size(), 4);
+
+        let mut short = [0u8; 3];
+        assert!(digest.finalize_into(&mut short).is_err());
+        let mut short_reset = [0u8; 3];
+        assert!(digest.finalize_into_reset(&mut short_reset).is_err());
+
+        let mut digest16 = Digest::new(CrcAlgorithm::Crc16Arc);
+        assert_eq!(digest16.output_size(), 2);
+        let mut digest64 = Digest::new(CrcAlgorithm::Crc64Nvme);
+        assert_eq!(digest64.output_size(), 8);
+        digest16.update(b"1");
+        digest64.update(b"1");
+    }
+
+    #[test]
+    fn test_digest_write_vectored_and_flush() {
+        use std::io::IoSlice;
+        let mut digest = Digest::new(CrcAlgorithm::Crc32IsoHdlc);
+        let bufs = [IoSlice::new(b"1234"), IoSlice::new(b"56789")];
+        assert_eq!(digest.write_vectored(&bufs).unwrap(), 9);
+        assert!(digest.flush().is_ok());
+        assert_eq!(digest.finalize(), 0xcbf43926);
+
+        let mut digest2 = Digest::new(CrcAlgorithm::Crc32IsoHdlc);
+        digest2.write_all(b"123456789").unwrap();
+        assert_eq!(digest2.finalize(), 0xcbf43926);
+    }
+
+    #[test]
+    fn test_fast_path_helpers_match_checksum() {
+        assert_eq!(crc32_iscsi(b"123456789"), 0xe3069283);
+        assert_eq!(crc32_iso_hdlc(b"123456789"), 0xcbf43926);
+        assert_eq!(
+            crc64_nvme(b"123456789"),
+            params_for_algorithm(CrcAlgorithm::Crc64Nvme).check
+        );
+    }
 }

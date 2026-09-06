@@ -1031,3 +1031,281 @@ fn get_or_leak_string(s: &str) -> &'static str {
     cache.insert(leaked);
     leaked
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::{CStr, CString};
+
+    fn error_str(error: CrcFastError) -> String {
+        unsafe {
+            let ptr = crc_fast_error_message(error);
+            assert!(!ptr.is_null(), "message for {error:?} must be non-null");
+            CStr::from_ptr(ptr).to_string_lossy().into_owned()
+        }
+    }
+
+    #[test]
+    fn error_messages_and_last_error_cycle() {
+        crc_fast_clear_error();
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::Success);
+        assert!(error_str(CrcFastError::Success).contains("successfully"));
+        assert!(error_str(CrcFastError::NullPointer).contains("Null pointer"));
+        assert!(error_str(CrcFastError::InvalidKeyCount).contains("key count"));
+        assert!(error_str(CrcFastError::UnsupportedWidth).contains("width"));
+        assert!(error_str(CrcFastError::InvalidUtf8).contains("UTF-8"));
+        assert!(error_str(CrcFastError::IoError).contains("I/O"));
+        assert!(error_str(CrcFastError::StringConversionError).contains("string"));
+
+        // Null data pointer records NullPointer.
+        assert_eq!(
+            crc_fast_checksum(CrcFastAlgorithm::Crc32IsoHdlc, core::ptr::null(), 9),
+            0
+        );
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::NullPointer);
+        crc_fast_clear_error();
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::Success);
+    }
+
+    #[test]
+    fn checksum_matches_rust_and_guards_null() {
+        let data = b"123456789";
+        let expected = crate::checksum(CrcAlgorithm::Crc32IsoHdlc, data);
+        let actual = crc_fast_checksum(
+            CrcFastAlgorithm::Crc32IsoHdlc,
+            data.as_ptr() as *const c_char,
+            data.len(),
+        );
+        assert_eq!(actual, expected);
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::Success);
+
+        assert_eq!(crc_fast_crc32_iscsi(core::ptr::null(), data.len()), 0);
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::NullPointer);
+        crc_fast_clear_error();
+        assert_eq!(
+            crc_fast_crc32_iso_hdlc(data.as_ptr() as *const c_char, data.len()),
+            crate::crc32_iso_hdlc(data)
+        );
+        assert_eq!(
+            crc_fast_crc64_nvme(data.as_ptr() as *const c_char, data.len()),
+            crate::crc64_nvme(data)
+        );
+        assert_eq!(crc_fast_crc64_nvme(core::ptr::null(), data.len()), 0);
+        crc_fast_clear_error();
+    }
+
+    #[test]
+    fn digest_lifecycle_matches_rust() {
+        let data = b"123456789";
+        let handle = crc_fast_digest_new(CrcFastAlgorithm::Crc32IsoHdlc);
+        assert!(!handle.is_null());
+        crc_fast_digest_update(handle, data.as_ptr() as *const c_char, data.len());
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::Success);
+        assert_eq!(crc_fast_digest_get_amount(handle), 9);
+        assert_eq!(
+            crc_fast_digest_finalize(handle),
+            crate::checksum(CrcAlgorithm::Crc32IsoHdlc, data)
+        );
+
+        // finalize_reset returns the same value then clears the count.
+        crc_fast_digest_reset(handle);
+        crc_fast_digest_update(handle, data.as_ptr() as *const c_char, data.len());
+        let once = crc_fast_digest_finalize_reset(handle);
+        assert_eq!(once, 0xcbf43926);
+        assert_eq!(crc_fast_digest_get_amount(handle), 0);
+
+        // Combine two halves equals the whole input.
+        let first = crc_fast_digest_new(CrcFastAlgorithm::Crc32IsoHdlc);
+        let second = crc_fast_digest_new(CrcFastAlgorithm::Crc32IsoHdlc);
+        crc_fast_digest_update(first, b"1234".as_ptr() as *const c_char, 4);
+        crc_fast_digest_update(second, b"56789".as_ptr() as *const c_char, 5);
+        crc_fast_digest_combine(first, second);
+        assert_eq!(crc_fast_digest_finalize(first), 0xcbf43926);
+        assert_eq!(crc_fast_digest_get_state(first), 0x340bc6d9);
+
+        crc_fast_digest_free(first);
+        crc_fast_digest_free(second);
+        crc_fast_digest_free(handle);
+    }
+
+    #[test]
+    fn digest_null_handles_set_error_without_crashing() {
+        crc_fast_digest_update(core::ptr::null_mut(), b"x".as_ptr() as *const c_char, 1);
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::NullPointer);
+        crc_fast_digest_update(
+            crc_fast_digest_new(CrcFastAlgorithm::Crc32IsoHdlc),
+            core::ptr::null(),
+            1,
+        );
+        // Leaked handle from the line above is intentional for this guard test;
+        // the important part is no crash and error recorded.
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::NullPointer);
+        assert_eq!(crc_fast_digest_finalize(core::ptr::null_mut()), 0);
+        assert_eq!(crc_fast_digest_finalize_reset(core::ptr::null_mut()), 0);
+        assert_eq!(crc_fast_digest_get_amount(core::ptr::null_mut()), 0);
+        assert_eq!(crc_fast_digest_get_state(core::ptr::null_mut()), 0);
+        crc_fast_digest_free(core::ptr::null_mut());
+        crc_fast_digest_reset(core::ptr::null_mut());
+        crc_fast_digest_combine(core::ptr::null_mut(), core::ptr::null_mut());
+        crc_fast_clear_error();
+    }
+
+    #[test]
+    fn custom_params_version_and_target() {
+        let params = crc_fast_get_custom_params(
+            core::ptr::null(),
+            32,
+            0x04c11db7,
+            0xffffffff,
+            true,
+            0xffffffff,
+            0xcbf43926,
+        );
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::Success);
+        assert!(!params.keys.is_null());
+        assert_eq!(params.key_count, 23);
+
+        let data = b"123456789";
+        let via_ffi = crc_fast_checksum_with_params(
+            crc_fast_get_custom_params(
+                core::ptr::null(),
+                32,
+                0x04c11db7,
+                0xffffffff,
+                true,
+                0xffffffff,
+                0xcbf43926,
+            ),
+            data.as_ptr() as *const c_char,
+            data.len(),
+        );
+        assert_eq!(via_ffi, 0xcbf43926);
+
+        // Unsupported width still returns params but records the error.
+        let _bad = crc_fast_get_custom_params(core::ptr::null(), 7, 0x07, 0x00, false, 0x00, 0x00);
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::UnsupportedWidth);
+        crc_fast_clear_error();
+
+        // Invalid key count is rejected.
+        let mut invalid = params;
+        invalid.key_count = 3;
+        assert_eq!(
+            crc_fast_checksum_with_params(invalid, data.as_ptr() as *const c_char, data.len()),
+            0
+        );
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::InvalidKeyCount);
+        crc_fast_clear_error();
+
+        // Null name falls back to "custom"; invalid UTF-8 records an error.
+        let name = CString::new("ffi-custom").unwrap();
+        let named = crc_fast_get_custom_params(
+            name.as_ptr(),
+            32,
+            0x04c11db7,
+            0xffffffff,
+            true,
+            0xffffffff,
+            0xcbf43926,
+        );
+        assert!(!named.keys.is_null());
+        let bad_bytes = [0xffu8, 0xfe];
+        let _bad_name = crc_fast_get_custom_params(
+            bad_bytes.as_ptr() as *const c_char,
+            32,
+            0x04c11db7,
+            0xffffffff,
+            true,
+            0xffffffff,
+            0xcbf43926,
+        );
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::InvalidUtf8);
+        crc_fast_clear_error();
+
+        unsafe {
+            let version = CStr::from_ptr(crc_fast_get_version());
+            assert_eq!(version.to_bytes(), env!("CARGO_PKG_VERSION").as_bytes());
+
+            let target = crc_fast_get_calculator_target(CrcFastAlgorithm::Crc32IsoHdlc);
+            assert!(!target.is_null());
+            assert!(!CStr::from_ptr(target).to_bytes().is_empty());
+            let _ = CString::from_raw(target as *mut c_char);
+        }
+    }
+
+    #[test]
+    fn checksum_combine_and_file_error_paths() {
+        let first = crate::checksum(CrcAlgorithm::Crc32IsoHdlc, b"1234");
+        let second = crate::checksum(CrcAlgorithm::Crc32IsoHdlc, b"56789");
+        assert_eq!(
+            crc_fast_checksum_combine(CrcFastAlgorithm::Crc32IsoHdlc, first, second, 5),
+            0xcbf43926
+        );
+
+        let params = crc_fast_get_custom_params(
+            core::ptr::null(),
+            32,
+            0x04c11db7,
+            0xffffffff,
+            true,
+            0xffffffff,
+            0xcbf43926,
+        );
+        assert!(!params.keys.is_null());
+        assert_eq!(params.key_count, 23);
+        crc_fast_clear_error();
+        assert_eq!(
+            crc_fast_checksum_combine_with_params(
+                crc_fast_get_custom_params(
+                    core::ptr::null(),
+                    32,
+                    0x04c11db7,
+                    0xffffffff,
+                    true,
+                    0xffffffff,
+                    0xcbf43926,
+                ),
+                first,
+                second,
+                5
+            ),
+            0xcbf43926
+        );
+
+        let missing = CString::new("/definitely/not/here/crc-fast-missing.txt").unwrap();
+        let miss_bytes = missing.to_bytes();
+        assert_eq!(
+            crc_fast_checksum_file(
+                CrcFastAlgorithm::Crc32IsoHdlc,
+                miss_bytes.as_ptr(),
+                miss_bytes.len()
+            ),
+            0
+        );
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::IoError);
+        crc_fast_clear_error();
+        assert_eq!(
+            crc_fast_checksum_file_with_params(
+                crc_fast_get_custom_params(
+                    core::ptr::null(),
+                    32,
+                    0x04c11db7,
+                    0xffffffff,
+                    true,
+                    0xffffffff,
+                    0xcbf43926,
+                ),
+                miss_bytes.as_ptr(),
+                miss_bytes.len()
+            ),
+            0
+        );
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::IoError);
+        crc_fast_clear_error();
+        assert_eq!(
+            crc_fast_checksum_file(CrcFastAlgorithm::Crc32IsoHdlc, core::ptr::null(), 0),
+            0
+        );
+        assert_eq!(crc_fast_get_last_error(), CrcFastError::NullPointer);
+        crc_fast_clear_error();
+    }
+}

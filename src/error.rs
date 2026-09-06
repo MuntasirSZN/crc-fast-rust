@@ -91,3 +91,54 @@ impl fmt::Display for LockPoisoned {
 }
 
 impl core::error::Error for LockPoisoned {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::error::Error;
+
+    #[test]
+    fn error_display_messages_are_stable() {
+        assert_eq!(UnsupportedWidth(7).to_string(), "unsupported CRC width: 7");
+        assert_eq!(
+            AllocRequired.to_string(),
+            "custom CRC parameters require the 'alloc' feature"
+        );
+        assert_eq!(
+            InvalidWidthDispatch.to_string(),
+            "invalid width dispatch (internal invariant violated)"
+        );
+        assert_eq!(DataTooLong.to_string(), "data length too large for combine");
+        assert_eq!(
+            InvalidCrcConfiguration.to_string(),
+            "unsupported CRC configuration"
+        );
+        assert_eq!(
+            MissingCustomParams.to_string(),
+            "custom CRC requires parameters via CrcParams::new()"
+        );
+        assert_eq!(LockPoisoned.to_string(), "lock poisoned");
+    }
+
+    #[test]
+    fn errors_implement_core_error_trait() {
+        fn assert_error<T: Error + core::fmt::Debug>() {}
+        assert_error::<UnsupportedWidth>();
+        assert_error::<AllocRequired>();
+        assert_error::<InvalidWidthDispatch>();
+        assert_error::<DataTooLong>();
+        assert_error::<InvalidCrcConfiguration>();
+        assert_error::<MissingCustomParams>();
+        assert_error::<LockPoisoned>();
+    }
+
+    #[test]
+    fn errors_are_copy_clone_eq() {
+        assert_eq!(UnsupportedWidth(5), UnsupportedWidth(5));
+        assert_ne!(UnsupportedWidth(5), UnsupportedWidth(8));
+        assert_eq!(DataTooLong, DataTooLong);
+        let owned = InvalidCrcConfiguration;
+        let copied = owned;
+        assert_eq!(owned, copied);
+    }
+}
