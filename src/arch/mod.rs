@@ -18,7 +18,7 @@ use crate::arch::aarch64::aes_sha3::Aarch64AesSha3Ops;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 use crate::{
     algorithm,
-    structs::{Width16, Width31, Width32, Width5, Width64},
+    structs::{Width16, Width31, Width32, Width5, Width64, Width8},
 };
 
 pub mod aarch64;
@@ -71,6 +71,7 @@ unsafe fn update_aarch64_aes(
         31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
         5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
+        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
         _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
@@ -90,6 +91,7 @@ unsafe fn update_aarch64_aes_sha3(
         31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
         5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
+        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
         _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
@@ -138,6 +140,7 @@ unsafe fn update_x86_sse_pclmulqdq(
         31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
         5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
+        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
         _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
@@ -157,6 +160,7 @@ unsafe fn update_x86_64_avx512_pclmulqdq(
         31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
         5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
+        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
         _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
@@ -176,6 +180,7 @@ unsafe fn update_x86_64_avx2_vpclmulqdq(
         31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
         5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
+        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
         _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }
@@ -195,6 +200,7 @@ unsafe fn update_x86_64_avx512_vpclmulqdq(
         31 => algorithm::update::<_, Width31>(state as u32, bytes, params, &ops) as u64,
         16 => algorithm::update::<_, Width16>(state as u16, bytes, params, &ops) as u64,
         5 => algorithm::update::<_, Width5>(state as u8, bytes, params, &ops) as u64,
+        8 => algorithm::update::<_, Width8>(state as u8, bytes, params, &ops) as u64,
         _ => unsafe { core::hint::unreachable_unchecked() },
     }
 }

@@ -16,7 +16,7 @@
 //! ===========
 //!
 //! Hardware-accelerated CRC calculation for
-//! [all known CRC-5, CRC-16, CRC-31, CRC-32 and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm)
+//! [all known CRC-5, CRC-8, CRC-16, CRC-31, CRC-32 and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm)
 //! using SIMD intrinsics which can exceed 100GiB/s for CRC-32 and 50GiB/s for CRC-64 on modern
 //! systems.
 //!
@@ -207,7 +207,12 @@ use crate::crc16::consts::{
 };
 
 use crate::crc31::consts::CRC31_PHILIPS;
-use crate::crc5::consts::CRC5_USB;
+use crate::crc5::consts::{CRC5_EPC_C1G2, CRC5_G_704, CRC5_USB};
+use crate::crc8::consts::{
+    CRC8_AUTOSAR, CRC8_BLUETOOTH, CRC8_CDMA2000, CRC8_DARC, CRC8_DVB_S2, CRC8_GSM_A, CRC8_GSM_B,
+    CRC8_HITAG, CRC8_I_432_1, CRC8_I_CODE, CRC8_LTE, CRC8_MAXIM_DOW, CRC8_MIFARE_MAD, CRC8_NRSC_5,
+    CRC8_OPENSAFETY, CRC8_ROHC, CRC8_SAE_J1850, CRC8_SMBUS, CRC8_TECH_3250, CRC8_WCDMA,
+};
 
 use crate::crc32::consts::{
     CRC32_AIXM, CRC32_AUTOSAR, CRC32_BASE91_D, CRC32_BZIP2, CRC32_CD_ROM_EDC, CRC32_CKSUM,
@@ -255,6 +260,7 @@ mod crc31;
 mod crc32;
 mod crc5;
 mod crc64;
+mod crc8;
 mod enums;
 pub mod error;
 mod feature_detection;
@@ -266,10 +272,10 @@ mod tables;
 mod test;
 mod traits;
 
-/// Supported CRC-5, CRC-16, CRC-31, CRC-32, and CRC-64 variants
+/// Supported CRC-5, CRC-8, CRC-16, CRC-31, CRC-32, and CRC-64 variants
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CrcAlgorithm {
-    /// Generic custom CRC variant that works with any supported width (5, 16, 31, 32, 64).
+    /// Generic custom CRC variant that works with any supported width (5, 8, 16, 31, 32, 64).
     /// The actual width is determined by the `width` field in `CrcParams`.
     CrcCustom,
     Crc16Arc,
@@ -304,6 +310,28 @@ pub enum CrcAlgorithm {
     Crc16Usb,
     Crc16Xmodem,
     Crc5Usb,
+    Crc5EpcC1G2,
+    Crc5G704,
+    Crc8Smbus,
+    Crc8I4321,
+    Crc8Rohc,
+    Crc8GsmA,
+    Crc8MifareMad,
+    Crc8ICode,
+    Crc8Hitag,
+    Crc8SaeJ1850,
+    Crc8Tech3250,
+    Crc8Opensafety,
+    Crc8Autosar,
+    Crc8MaximDow,
+    Crc8Nrsc5,
+    Crc8Darc,
+    Crc8GsmB,
+    Crc8Lte,
+    Crc8Wcdma,
+    Crc8Cdma2000,
+    Crc8Bluetooth,
+    Crc8DvbS2,
     Crc31Philips,
     Crc32Aixm,
     Crc32Autosar,
@@ -845,6 +873,74 @@ pub fn checksum(algorithm: CrcAlgorithm, buf: &[u8]) -> u64 {
         CrcAlgorithm::Crc5Usb => {
             Calculator::calculate(CRC5_USB.init, buf, &CRC5_USB) ^ CRC5_USB.xorout
         }
+        CrcAlgorithm::Crc5EpcC1G2 => {
+            Calculator::calculate(CRC5_EPC_C1G2.init, buf, &CRC5_EPC_C1G2) ^ CRC5_EPC_C1G2.xorout
+        }
+        CrcAlgorithm::Crc5G704 => {
+            Calculator::calculate(CRC5_G_704.init, buf, &CRC5_G_704) ^ CRC5_G_704.xorout
+        }
+        CrcAlgorithm::Crc8Smbus => {
+            Calculator::calculate(CRC8_SMBUS.init, buf, &CRC8_SMBUS) ^ CRC8_SMBUS.xorout
+        }
+        CrcAlgorithm::Crc8I4321 => {
+            Calculator::calculate(CRC8_I_432_1.init, buf, &CRC8_I_432_1) ^ CRC8_I_432_1.xorout
+        }
+        CrcAlgorithm::Crc8Rohc => {
+            Calculator::calculate(CRC8_ROHC.init, buf, &CRC8_ROHC) ^ CRC8_ROHC.xorout
+        }
+        CrcAlgorithm::Crc8GsmA => {
+            Calculator::calculate(CRC8_GSM_A.init, buf, &CRC8_GSM_A) ^ CRC8_GSM_A.xorout
+        }
+        CrcAlgorithm::Crc8MifareMad => {
+            Calculator::calculate(CRC8_MIFARE_MAD.init, buf, &CRC8_MIFARE_MAD)
+                ^ CRC8_MIFARE_MAD.xorout
+        }
+        CrcAlgorithm::Crc8ICode => {
+            Calculator::calculate(CRC8_I_CODE.init, buf, &CRC8_I_CODE) ^ CRC8_I_CODE.xorout
+        }
+        CrcAlgorithm::Crc8Hitag => {
+            Calculator::calculate(CRC8_HITAG.init, buf, &CRC8_HITAG) ^ CRC8_HITAG.xorout
+        }
+        CrcAlgorithm::Crc8SaeJ1850 => {
+            Calculator::calculate(CRC8_SAE_J1850.init, buf, &CRC8_SAE_J1850) ^ CRC8_SAE_J1850.xorout
+        }
+        CrcAlgorithm::Crc8Tech3250 => {
+            Calculator::calculate(CRC8_TECH_3250.init, buf, &CRC8_TECH_3250) ^ CRC8_TECH_3250.xorout
+        }
+        CrcAlgorithm::Crc8Opensafety => {
+            Calculator::calculate(CRC8_OPENSAFETY.init, buf, &CRC8_OPENSAFETY)
+                ^ CRC8_OPENSAFETY.xorout
+        }
+        CrcAlgorithm::Crc8Autosar => {
+            Calculator::calculate(CRC8_AUTOSAR.init, buf, &CRC8_AUTOSAR) ^ CRC8_AUTOSAR.xorout
+        }
+        CrcAlgorithm::Crc8MaximDow => {
+            Calculator::calculate(CRC8_MAXIM_DOW.init, buf, &CRC8_MAXIM_DOW) ^ CRC8_MAXIM_DOW.xorout
+        }
+        CrcAlgorithm::Crc8Nrsc5 => {
+            Calculator::calculate(CRC8_NRSC_5.init, buf, &CRC8_NRSC_5) ^ CRC8_NRSC_5.xorout
+        }
+        CrcAlgorithm::Crc8Darc => {
+            Calculator::calculate(CRC8_DARC.init, buf, &CRC8_DARC) ^ CRC8_DARC.xorout
+        }
+        CrcAlgorithm::Crc8GsmB => {
+            Calculator::calculate(CRC8_GSM_B.init, buf, &CRC8_GSM_B) ^ CRC8_GSM_B.xorout
+        }
+        CrcAlgorithm::Crc8Lte => {
+            Calculator::calculate(CRC8_LTE.init, buf, &CRC8_LTE) ^ CRC8_LTE.xorout
+        }
+        CrcAlgorithm::Crc8Wcdma => {
+            Calculator::calculate(CRC8_WCDMA.init, buf, &CRC8_WCDMA) ^ CRC8_WCDMA.xorout
+        }
+        CrcAlgorithm::Crc8Cdma2000 => {
+            Calculator::calculate(CRC8_CDMA2000.init, buf, &CRC8_CDMA2000) ^ CRC8_CDMA2000.xorout
+        }
+        CrcAlgorithm::Crc8Bluetooth => {
+            Calculator::calculate(CRC8_BLUETOOTH.init, buf, &CRC8_BLUETOOTH) ^ CRC8_BLUETOOTH.xorout
+        }
+        CrcAlgorithm::Crc8DvbS2 => {
+            Calculator::calculate(CRC8_DVB_S2.init, buf, &CRC8_DVB_S2) ^ CRC8_DVB_S2.xorout
+        }
         CrcAlgorithm::Crc31Philips => {
             Calculator::calculate(CRC31_PHILIPS.init, buf, &CRC31_PHILIPS) ^ CRC31_PHILIPS.xorout
         }
@@ -1254,6 +1350,28 @@ fn get_calculator_params(algorithm: CrcAlgorithm) -> (CalculatorFn, CrcParams) {
         CrcAlgorithm::Crc16Usb => (Calculator::calculate as CalculatorFn, CRC16_USB),
         CrcAlgorithm::Crc16Xmodem => (Calculator::calculate as CalculatorFn, CRC16_XMODEM),
         CrcAlgorithm::Crc5Usb => (Calculator::calculate as CalculatorFn, CRC5_USB),
+        CrcAlgorithm::Crc5EpcC1G2 => (Calculator::calculate as CalculatorFn, CRC5_EPC_C1G2),
+        CrcAlgorithm::Crc5G704 => (Calculator::calculate as CalculatorFn, CRC5_G_704),
+        CrcAlgorithm::Crc8Smbus => (Calculator::calculate as CalculatorFn, CRC8_SMBUS),
+        CrcAlgorithm::Crc8I4321 => (Calculator::calculate as CalculatorFn, CRC8_I_432_1),
+        CrcAlgorithm::Crc8Rohc => (Calculator::calculate as CalculatorFn, CRC8_ROHC),
+        CrcAlgorithm::Crc8GsmA => (Calculator::calculate as CalculatorFn, CRC8_GSM_A),
+        CrcAlgorithm::Crc8MifareMad => (Calculator::calculate as CalculatorFn, CRC8_MIFARE_MAD),
+        CrcAlgorithm::Crc8ICode => (Calculator::calculate as CalculatorFn, CRC8_I_CODE),
+        CrcAlgorithm::Crc8Hitag => (Calculator::calculate as CalculatorFn, CRC8_HITAG),
+        CrcAlgorithm::Crc8SaeJ1850 => (Calculator::calculate as CalculatorFn, CRC8_SAE_J1850),
+        CrcAlgorithm::Crc8Tech3250 => (Calculator::calculate as CalculatorFn, CRC8_TECH_3250),
+        CrcAlgorithm::Crc8Opensafety => (Calculator::calculate as CalculatorFn, CRC8_OPENSAFETY),
+        CrcAlgorithm::Crc8Autosar => (Calculator::calculate as CalculatorFn, CRC8_AUTOSAR),
+        CrcAlgorithm::Crc8MaximDow => (Calculator::calculate as CalculatorFn, CRC8_MAXIM_DOW),
+        CrcAlgorithm::Crc8Nrsc5 => (Calculator::calculate as CalculatorFn, CRC8_NRSC_5),
+        CrcAlgorithm::Crc8Darc => (Calculator::calculate as CalculatorFn, CRC8_DARC),
+        CrcAlgorithm::Crc8GsmB => (Calculator::calculate as CalculatorFn, CRC8_GSM_B),
+        CrcAlgorithm::Crc8Lte => (Calculator::calculate as CalculatorFn, CRC8_LTE),
+        CrcAlgorithm::Crc8Wcdma => (Calculator::calculate as CalculatorFn, CRC8_WCDMA),
+        CrcAlgorithm::Crc8Cdma2000 => (Calculator::calculate as CalculatorFn, CRC8_CDMA2000),
+        CrcAlgorithm::Crc8Bluetooth => (Calculator::calculate as CalculatorFn, CRC8_BLUETOOTH),
+        CrcAlgorithm::Crc8DvbS2 => (Calculator::calculate as CalculatorFn, CRC8_DVB_S2),
         CrcAlgorithm::Crc31Philips => (Calculator::calculate as CalculatorFn, CRC31_PHILIPS),
         CrcAlgorithm::Crc32Aixm => (Calculator::calculate as CalculatorFn, CRC32_AIXM),
         CrcAlgorithm::Crc32Autosar => (Calculator::calculate as CalculatorFn, CRC32_AUTOSAR),

@@ -28,33 +28,33 @@ strategy using feature flags.
 ### CRC-32/AUTOSAR (reflected)
 
 | Arch    | Brand | CPU             | System                    | Target          | Throughput (1 KiB) | Throughput (1 MiB) |
-|:--------|:------|:----------------|:--------------------------|:----------------|-------------------:|-------------------:|
+| :------ | :---- | :-------------- | :------------------------ | :-------------- | -----------------: | -----------------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | avx2_vpclmulqdq |      ~16.204 GiB/s |      ~55.921 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | sse_pclmulqdq   |      ~14.243 GiB/s |      ~28.148 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx2_vpclmulqdq |      ~17.135 GiB/s |      ~27.378 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | sse_pclmulqdq   |      ~10.237 GiB/s |      ~13.708 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_pclmulqdq  |      ~15.061 GiB/s |      ~24.871 GiB/s |
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~39.201 GiB/s |      ~72.359 GiB/s | 
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~39.201 GiB/s |      ~72.359 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_pclmulqdq  |      ~36.917 GiB/s |      ~64.916 GiB/s |
 | aarch64 | Apple | M3 Ultra        | Mac Studio (32 core)      | neon_pclmulqdq  |      ~38.245 GiB/s |      ~71.382 GiB/s |
 
 ### CRC-32/BZIP2 (forward)
 
 | Arch    | Brand | CPU             | System                    | Target          | Throughput (1 KiB) | Throughput (1 MiB) |
-|:--------|:------|:----------------|:--------------------------|:----------------|-------------------:|-------------------:|
+| :------ | :---- | :-------------- | :------------------------ | :-------------- | -----------------: | -----------------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | avx2_vpclmulqdq |      ~15.613 GiB/s |      ~27.997 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | sse_pclmulqdq   |      ~13.369 GiB/s |      ~28.142 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx2_vpclmulqdq |      ~14.100 GiB/s |      ~25.755 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | sse_pclmulqdq   |      ~9.8876 GiB/s |      ~13.293 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_pclmulqdq  |      ~14.040 GiB/s |      ~21.014 GiB/s |
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~37.052 GiB/s |      ~58.513 GiB/s | 
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~37.052 GiB/s |      ~58.513 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_pclmulqdq  |       ~34.099 GiB/ |      ~53.448 GiB/s |
 | aarch64 | Apple | M3 Ultra        | Mac Studio (32 core)      | neon_pclmulqdq  |      ~38.424 GiB/s |      ~59.369 GiB/s |
 
 ### CRC-32/ISCSI (reflected) [aka "crc32c" in many, but not all, implementations]
 
 | Arch    | Brand | CPU             | System                    | Target                     | Throughput (1 KiB) | Throughput (1 MiB) |
-|:--------|:------|:----------------|:--------------------------|:---------------------------|-------------------:|-------------------:|
+| :------ | :---- | :-------------- | :------------------------ | :------------------------- | -----------------: | -----------------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | **avx512_vpclmulqdq_v3x2** |      ~38.013 GiB/s |      ~111.72 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | avx512_v4s3x3              |      ~18.684 GiB/s |      ~43.461 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | sse_v4s3x3                 |      ~16.780 GiB/s |      ~43.471 GiB/s |
@@ -70,14 +70,14 @@ strategy using feature flags.
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_v3s4x2e_v2            |      ~13.123 GiB/s |      ~28.757 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | **neon_blended**           |      ~18.530 GiB/s |      ~31.598 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_pclmulqdq             |      ~14.685 GiB/s |      ~24.676 GiB/s |
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_eor3_v9s3x2e_s3       |      ~19.848 GiB/s |      ~95.026 GiB/s | 
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v12e_v1               |      ~50.518 GiB/s |      ~94.455 GiB/s | 
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v3s4x2e_v2            |      ~14.499 GiB/s |      ~48.604 GiB/s | 
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_pclmulqdq             |      ~25.107 GiB/s |      ~67.141 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_eor3_v9s3x2e_s3       |      ~29.130 GiB/s |      ~96.865 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_v12e_v1               |      ~59.834 GiB/s |      ~105.31 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_v3s4x2e_v2            |      ~22.472 GiB/s |      ~54.195 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | **neon_blended**           |      ~60.791 GiB/s |      ~96.310 GiB/s | 
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_eor3_v9s3x2e_s3       |      ~19.848 GiB/s |      ~95.026 GiB/s |
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v12e_v1               |      ~50.518 GiB/s |      ~94.455 GiB/s |
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v3s4x2e_v2            |      ~14.499 GiB/s |      ~48.604 GiB/s |
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_pclmulqdq             |      ~25.107 GiB/s |      ~67.141 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_eor3_v9s3x2e_s3       |      ~29.130 GiB/s |      ~96.865 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_v12e_v1               |      ~59.834 GiB/s |      ~105.31 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_v3s4x2e_v2            |      ~22.472 GiB/s |      ~54.195 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | **neon_blended**           |      ~60.791 GiB/s |      ~96.310 GiB/s |
 | aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq             |      ~39.322 GiB/s |      ~72.366 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_eor3_v9s3x2e_s3       |      ~20.183 GiB/s |      ~87.630 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_v12e_v1               |      ~50.776 GiB/s |      ~82.354 GiB/s |
@@ -93,7 +93,7 @@ strategy using feature flags.
 ### CRC-32/ISO-HDLC (reflected) [aka "crc32" in many, but not all, implementations]
 
 | Arch    | Brand | CPU             | System                    | Target                 | Throughput (1 KiB) | Throughput (1 MiB) |
-|:--------|:------|:----------------|:--------------------------|:-----------------------|-------------------:|-------------------:|
+| :------ | :---- | :-------------- | :------------------------ | :--------------------- | -----------------: | -----------------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | avx512_vpclmulqdq_v3x2 |      ~8.1734 GiB/s |      ~111.60 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | avx512_v4s3x3          |      ~7.2054 GiB/s |      ~11.953 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | sse_v4s3x3             |      ~7.1272 GiB/s |      ~11.883 GiB/s |
@@ -111,14 +111,14 @@ strategy using feature flags.
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_v3s4x2e_v2        |      ~13.093 GiB/s |      ~28.971 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | **neon_blended**       |      ~18.470 GiB/s |      ~31.536 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_pclmulqdq         |      ~14.654 GiB/s |      ~24.264 GiB/s |
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_eor3_v9s3x2e_s3   |      ~21.994 GiB/s |      ~95.329 GiB/s | 
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v12e_v1           |      ~40.351 GiB/s |      ~95.176 GiB/s | 
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v3s4x2e_v2        |      ~17.035 GiB/s |      ~48.650 GiB/s | 
-| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_pclmulqdq         |      ~39.514 GiB/s |      ~67.118 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_eor3_v9s3x2e_s3   |      ~29.186 GiB/s |      ~96.635 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | **neon_v12e_v1**       |      ~59.174 GiB/s |      ~105.28 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_v3s4x2e_v2        |      ~22.576 GiB/s |      ~54.050 GiB/s | 
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_blended           |      ~59.331 GiB/s |      ~96.238 GiB/s | 
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_eor3_v9s3x2e_s3   |      ~21.994 GiB/s |      ~95.329 GiB/s |
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v12e_v1           |      ~40.351 GiB/s |      ~95.176 GiB/s |
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_v3s4x2e_v2        |      ~17.035 GiB/s |      ~48.650 GiB/s |
+| aarch64 | Apple | M3 Max          | MacBook Pro 16"           | neon_pclmulqdq         |      ~39.514 GiB/s |      ~67.118 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_eor3_v9s3x2e_s3   |      ~29.186 GiB/s |      ~96.635 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | **neon_v12e_v1**       |      ~59.174 GiB/s |      ~105.28 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_v3s4x2e_v2        |      ~22.576 GiB/s |      ~54.050 GiB/s |
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_blended           |      ~59.331 GiB/s |      ~96.238 GiB/s |
 | aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq         |      ~39.546 GiB/s |      ~72.143 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_eor3_v9s3x2e_s3   |      ~20.433 GiB/s |      ~87.812 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_v12e_v1           |      ~50.557 GiB/s |      ~82.379 GiB/s |
@@ -134,25 +134,76 @@ strategy using feature flags.
 ### CRC-64/ECMA-182 (forward)
 
 | Arch    | Brand | CPU             | System                    | Target          | Throughput (1 KiB) | Throughput (1 MiB) |
-|:--------|:------|:----------------|:--------------------------|:----------------|-------------------:|-------------------:|
+| :------ | :---- | :-------------- | :------------------------ | :-------------- | -----------------: | -----------------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | avx2_vpclmulqdq |      ~16.733 GiB/s |      ~27.976 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | sse_pclmulqdq   |      ~13.896 GiB/s |      ~28.171 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx2_vpclmulqdq |      ~14.807 GiB/s |      ~25.764 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | sse_pclmulqdq   |      ~10.145 GiB/s |      ~13.277 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_pclmulqdq  |      ~14.367 GiB/s |      ~21.078 GiB/s |
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~37.538 GiB/s |      ~59.511 GiB/s | 
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~37.538 GiB/s |      ~59.511 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_pclmulqdq  |      ~34.098 GiB/s |      ~53.587 GiB/s |
 | aarch64 | Apple | M3 Ultra        | Mac Studio (32 core)      | neon_pclmulqdq  |      ~37.525 GiB/s |      ~59.392 GiB/s |
 
 ### CRC-64/NVME (reflected)
 
 | Arch    | Brand | CPU             | System                    | Target          | Throughput (1 KiB) | Throughput (1 MiB) |
-|:--------|:------|:----------------|:--------------------------|:----------------|-------------------:|-------------------:|
+| :------ | :---- | :-------------- | :------------------------ | :-------------- | -----------------: | -----------------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | avx2_vpclmulqdq |      ~16.967 GiB/s |      ~56.369 GiB/s |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-48xl        | sse_pclmulqdq   |      ~14.082 GiB/s |      ~28.104 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx2_vpclmulqdq |      ~17.347 GiB/s |      ~27.377 GiB/s |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | sse_pclmulqdq   |      ~10.661 GiB/s |      ~13.664 GiB/s |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon_pclmulqdq  |      ~16.272 GiB/s |      ~16.272 GiB/s |
-| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~40.335 GiB/s |      ~72.282 GiB/s | 
+| aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon_pclmulqdq  |      ~40.335 GiB/s |      ~72.282 GiB/s |
 | aarch64 | Apple | M2 Ultra        | Mac Studio (24 core)      | neon_pclmulqdq  |      ~39.315 GiB/s |      ~64.987 GiB/s |
 | aarch64 | Apple | M3 Ultra        | Mac Studio (32 core)      | neon_pclmulqdq  |      ~43.987 GiB/s |      ~71.891 GiB/s |
+
+### CRC-8/SMBUS (forward)
+
+| Arch   | Brand | CPU      | System    | Target        | Throughput (1 KiB) | Throughput (1 MiB) |
+| :----- | :---- | :------- | :-------- | :------------ | -----------------: | -----------------: |
+| x86_64 | Intel | i3-12100 | local dev | sse_pclmulqdq |      ~20.032 GiB/s |      ~28.142 GiB/s |
+
+### CRC-8/MAXIM-DOW (reflected)
+
+| Arch   | Brand | CPU      | System    | Target        | Throughput (1 KiB) | Throughput (1 MiB) |
+| :----- | :---- | :------- | :-------- | :------------ | -----------------: | -----------------: |
+| x86_64 | Intel | i3-12100 | local dev | sse_pclmulqdq |      ~20.964 GiB/s |      ~28.384 GiB/s |
+
+### CRC-8/AUTOSAR (forward)
+
+| Arch   | Brand | CPU      | System    | Target        | Throughput (1 KiB) | Throughput (1 MiB) |
+| :----- | :---- | :------- | :-------- | :------------ | -----------------: | -----------------: |
+| x86_64 | Intel | i3-12100 | local dev | sse_pclmulqdq |      ~19.892 GiB/s |      ~30.203 GiB/s |
+
+### CRC-8/BLUETOOTH (reflected)
+
+| Arch   | Brand | CPU      | System    | Target        | Throughput (1 KiB) | Throughput (1 MiB) |
+| :----- | :---- | :------- | :-------- | :------------ | -----------------: | -----------------: |
+| x86_64 | Intel | i3-12100 | local dev | sse_pclmulqdq |      ~20.970 GiB/s |      ~30.352 GiB/s |
+
+CRC-8 computation is scaled into the same 32-bit-space SIMD folding path as CRC-32, so throughput tracks the
+CRC-32 rows above on the same target, with the usual penalty on forward variants from the extra
+shuffle-masking. Run only this group with:
+
+```
+cargo bench --bench benchmark -- CRC-8
+```
+
+### CRC-5/USB (reflected)
+
+| Arch   | Brand | CPU      | System    | Target        | Throughput (1 KiB) | Throughput (1 MiB) |
+| :----- | :---- | :------- | :-------- | :------------ | -----------------: | -----------------: |
+| x86_64 | Intel | i3-12100 | local dev | sse_pclmulqdq |      ~20.286 GiB/s |      ~30.341 GiB/s |
+
+### CRC-5/EPC-C1G2 (forward)
+
+| Arch   | Brand | CPU      | System    | Target        | Throughput (1 KiB) | Throughput (1 MiB) |
+| :----- | :---- | :------- | :-------- | :------------ | -----------------: | -----------------: |
+| x86_64 | Intel | i3-12100 | local dev | sse_pclmulqdq |      ~20.469 GiB/s |      ~30.419 GiB/s |
+
+Same story as CRC-8: shares the 32-bit-space folding infrastructure, so expect CRC-32-class throughput on the
+same target. Run only this group with:
+
+```
+cargo bench --bench benchmark -- CRC-5
+```

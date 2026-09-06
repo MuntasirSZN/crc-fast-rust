@@ -41,6 +41,29 @@ pub const NAME_CRC16_X25: &str = "CRC-16/X-25";
 pub const NAME_CRC16_XMODEM: &str = "CRC-16/XMODEM";
 
 pub const NAME_CRC5_USB: &str = "CRC-5/USB";
+pub const NAME_CRC5_EPC_C1G2: &str = "CRC-5/EPC-C1G2";
+pub const NAME_CRC5_G_704: &str = "CRC-5/G-704";
+
+pub const NAME_CRC8_SMBUS: &str = "CRC-8/SMBUS";
+pub const NAME_CRC8_I_432_1: &str = "CRC-8/I-432-1";
+pub const NAME_CRC8_ROHC: &str = "CRC-8/ROHC";
+pub const NAME_CRC8_GSM_A: &str = "CRC-8/GSM-A";
+pub const NAME_CRC8_MIFARE_MAD: &str = "CRC-8/MIFARE-MAD";
+pub const NAME_CRC8_I_CODE: &str = "CRC-8/I-CODE";
+pub const NAME_CRC8_HITAG: &str = "CRC-8/HITAG";
+pub const NAME_CRC8_SAE_J1850: &str = "CRC-8/SAE-J1850";
+pub const NAME_CRC8_TECH_3250: &str = "CRC-8/TECH-3250";
+pub const NAME_CRC8_OPENSAFETY: &str = "CRC-8/OPENSAFETY";
+pub const NAME_CRC8_AUTOSAR: &str = "CRC-8/AUTOSAR";
+pub const NAME_CRC8_MAXIM_DOW: &str = "CRC-8/MAXIM-DOW";
+pub const NAME_CRC8_NRSC_5: &str = "CRC-8/NRSC-5";
+pub const NAME_CRC8_DARC: &str = "CRC-8/DARC";
+pub const NAME_CRC8_GSM_B: &str = "CRC-8/GSM-B";
+pub const NAME_CRC8_LTE: &str = "CRC-8/LTE";
+pub const NAME_CRC8_WCDMA: &str = "CRC-8/WCDMA";
+pub const NAME_CRC8_CDMA2000: &str = "CRC-8/CDMA2000";
+pub const NAME_CRC8_BLUETOOTH: &str = "CRC-8/BLUETOOTH";
+pub const NAME_CRC8_DVB_S2: &str = "CRC-8/DVB-S2";
 
 pub const NAME_CRC31_PHILIPS: &str = "CRC-31/PHILIPS";
 

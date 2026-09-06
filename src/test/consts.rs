@@ -171,6 +171,72 @@ pub(crate) const RUST_CRC16_XMODEM: crc::Crc<u16, Table<16>> =
 pub(crate) const RUST_CRC5_USB: crc::Crc<u8, Table<16>> =
     crc::Crc::<u8, Table<16>>::new(&crc::CRC_5_USB);
 
+pub(crate) const RUST_CRC5_EPC_C1G2: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_5_EPC_C1G2);
+
+pub(crate) const RUST_CRC5_G_704: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_5_G_704);
+
+pub(crate) const RUST_CRC8_SMBUS: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_SMBUS);
+
+pub(crate) const RUST_CRC8_BLUETOOTH: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_BLUETOOTH);
+
+pub(crate) const RUST_CRC8_AUTOSAR: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_AUTOSAR);
+
+pub(crate) const RUST_CRC8_MAXIM_DOW: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_MAXIM_DOW);
+
+pub(crate) const RUST_CRC8_I_432_1: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_I_432_1);
+
+pub(crate) const RUST_CRC8_ROHC: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_ROHC);
+
+pub(crate) const RUST_CRC8_GSM_A: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_GSM_A);
+
+pub(crate) const RUST_CRC8_MIFARE_MAD: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_MIFARE_MAD);
+
+pub(crate) const RUST_CRC8_I_CODE: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_I_CODE);
+
+pub(crate) const RUST_CRC8_HITAG: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_HITAG);
+
+pub(crate) const RUST_CRC8_SAE_J1850: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_SAE_J1850);
+
+pub(crate) const RUST_CRC8_TECH_3250: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_TECH_3250);
+
+pub(crate) const RUST_CRC8_OPENSAFETY: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_OPENSAFETY);
+
+pub(crate) const RUST_CRC8_NRSC_5: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_NRSC_5);
+
+pub(crate) const RUST_CRC8_DARC: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_DARC);
+
+pub(crate) const RUST_CRC8_GSM_B: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_GSM_B);
+
+pub(crate) const RUST_CRC8_LTE: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_LTE);
+
+pub(crate) const RUST_CRC8_WCDMA: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_WCDMA);
+
+pub(crate) const RUST_CRC8_CDMA2000: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_CDMA2000);
+
+pub(crate) const RUST_CRC8_DVB_S2: crc::Crc<u8, Table<16>> =
+    crc::Crc::<u8, Table<16>>::new(&crc::CRC_8_DVB_S2);
+
 pub(crate) const RUST_CRC31_PHILIPS: crc::Crc<u32, Table<16>> =
     crc::Crc::<u32, Table<16>>::new(&crc::CRC_31_PHILIPS);
 

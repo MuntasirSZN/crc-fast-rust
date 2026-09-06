@@ -45,6 +45,15 @@ impl CrcWidth for Width5 {
     type Value = u8;
 }
 
+/// CRC-8 width implementation
+#[derive(Clone, Copy)]
+pub struct Width8;
+
+impl CrcWidth for Width8 {
+    const WIDTH: u32 = 8;
+    type Value = u8;
+}
+
 /// CRC-16 width implementation
 #[derive(Clone, Copy)]
 pub struct Width16;
@@ -100,7 +109,7 @@ impl CrcCalculator for Calculator {
 impl CrcParams {
     /// Fallible constructor for custom CRC parameters (panic-free, uses `exn`).
     ///
-    /// Returns `Err(Exn<UnsupportedWidth>)` if `width` is not 16, 32, or 64.
+    /// Returns `Err(Exn<UnsupportedWidth>)` if `width` is not 5, 8, 16, 31, 32, or 64.
     #[cfg(feature = "alloc")]
     pub fn try_new(
         name: &'static str,
@@ -111,7 +120,7 @@ impl CrcParams {
         xorout: u64,
         check: u64,
     ) -> exn::Result<Self, crate::error::UnsupportedWidth> {
-        if width != 5 && width != 16 && width != 31 && width != 32 && width != 64 {
+        if width != 5 && width != 8 && width != 16 && width != 31 && width != 32 && width != 64 {
             exn::bail!(crate::error::UnsupportedWidth(width));
         }
         let keys_array = cache::get_or_generate_keys(width, poly, reflected);
@@ -129,6 +138,7 @@ impl CrcParams {
                     }
                     rev as u64
                 }
+                8 => (init as u8).reverse_bits() as u64,
                 16 => (init as u16).reverse_bits() as u64,
                 _ => init,
             }
@@ -175,7 +185,7 @@ impl CrcParams {
         check: u64,
     ) -> Self {
         // Validate width is supported (panic-free: fallback to try_new, and on error create dummy)
-        if width != 5 && width != 16 && width != 31 && width != 32 && width != 64 {
+        if width != 5 && width != 8 && width != 16 && width != 31 && width != 32 && width != 64 {
             // Keep backwards compat but panic-free: create dummy with zero keys
             // Caller should use `try_new` to get proper `Exn` error.
             let keys = crate::CrcKeysStorage::from_keys_fold_256([0; 23]);
@@ -191,6 +201,7 @@ impl CrcParams {
                         }
                         rev as u64
                     }
+                    8 => (init as u8).reverse_bits() as u64,
                     16 => (init as u16).reverse_bits() as u64,
                     _ => init,
                 }
@@ -227,6 +238,7 @@ impl CrcParams {
                     }
                     rev as u64
                 }
+                8 => (init as u8).reverse_bits() as u64,
                 16 => (init as u16).reverse_bits() as u64,
                 _ => init,
             }

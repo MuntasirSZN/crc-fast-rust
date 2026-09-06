@@ -60,15 +60,12 @@ required-features = ["std"]
 digest = { version = "0.11", default-features = false, features = ["alloc"], optional = true }
 
 # spin for no_std-friendly Once/Mutex/RwLock (always required for feature detection)
-spin = { version = "0.12.3", default-features = false, features = ["mutex", "once", "rwlock", "spin_mutex", "barrier"] }
+spin = { version = "0.12.3", default-features = false, features = ["barrier", "mutex", "once", "rwlock", "spin_mutex"] }
 
 hashbrown = { version = "0.17.1", optional = true }
 
 # context-aware error handling (no_std, alloc) - replaces panic/unwrap, only when alloc available
 exn = { version = "0.4.0-rc.1", default-features = false, optional = true }
-
-[target.'cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))'.dependencies]
-cpufeatures = "0.3"
 
 [dev-dependencies]
 crc = "3.4"
@@ -76,16 +73,19 @@ criterion = "0.8"
 proptest = "1.11"
 rand = "0.10"
 
+[target.'cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+cpufeatures = "0.3"
+
 [features]
 # default features
 default = ["ffi", "panic-handler", "std"]
 alloc = ["digest", "exn"]  # marker feature for heap allocation support
-ffi = ["std"]  # ffi currently requires std (uses hashbrown/spin/alloc and std file IO)
-panic-handler = []  # Provides panic handler for no_std library checks (disable in binaries)
-std = ["alloc", "hashbrown"]  # std implies alloc + hashbrown for cache
 cache = ["alloc", "hashbrown"]  # caching requires alloc + hashbrown
 # optional features
 cli = ["std"]  # command line interface binaries (checksum, arch-check, get-custom-params)
+ffi = ["std"]  # ffi currently requires std (uses hashbrown/spin/alloc and std file IO)
+panic-handler = []  # Provides panic handler for no_std library checks (disable in binaries)
+std = ["alloc", "hashbrown"]  # std implies alloc + hashbrown for cache
 
 # lto=true has a big improvement in performance
 [profile.release]

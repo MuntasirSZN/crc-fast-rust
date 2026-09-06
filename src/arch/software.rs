@@ -202,6 +202,9 @@ use spin::{Mutex, Once};
 type Crc5Key = (u32, u32, bool, bool, u32, u32);
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
+type Crc8Key = (u32, u32, bool, bool, u32, u32);
+#[cfg(feature = "alloc")]
+#[cfg(any(feature = "std", feature = "cache"))]
 type Crc16Key = (u16, u16, bool, bool, u16, u16);
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
@@ -219,6 +222,9 @@ type Crc64Key = (u64, u64, bool, bool, u64, u64);
 type Crc5CacheValue = &'static [[u32; 256]; 16];
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
+type Crc8CacheValue = &'static [[u32; 256]; 16];
+#[cfg(feature = "alloc")]
+#[cfg(any(feature = "std", feature = "cache"))]
 type Crc16CacheValue = &'static [[u16; 256]; 16];
 #[cfg(feature = "alloc")]
 #[cfg(any(feature = "std", feature = "cache"))]
@@ -233,6 +239,8 @@ type Crc64CacheValue = &'static [[u64; 256]; 16];
 // Global caches for custom algorithms (spin::Once + hashbrown, no_std friendly)
 #[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 static CUSTOM_CRC5_CACHE: Once<Mutex<HashMap<Crc5Key, Crc5CacheValue>>> = Once::new();
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
+static CUSTOM_CRC8_CACHE: Once<Mutex<HashMap<Crc8Key, Crc8CacheValue>>> = Once::new();
 #[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
 static CUSTOM_CRC16_CACHE: Once<Mutex<HashMap<Crc16Key, Crc16CacheValue>>> = Once::new();
 #[cfg(all(feature = "alloc", any(feature = "std", feature = "cache")))]
@@ -250,6 +258,7 @@ static CUSTOM_CRC64_CACHE: Once<Mutex<HashMap<Crc64Key, Crc64CacheValue>>> = Onc
 pub(crate) fn update(state: u64, data: &[u8], params: &CrcParams) -> u64 {
     match params.width {
         5 => update_crc5(state as u8, data, params) as u64,
+        8 => update_crc8(state as u8, data, params) as u64,
         16 => update_crc16(state as u16, data, params) as u64,
         31 => update_crc31(state as u32, data, params) as u64,
         32 => update_crc32(state as u32, data, params) as u64,
@@ -265,6 +274,8 @@ pub(crate) fn update(state: u64, data: &[u8], params: &CrcParams) -> u64 {
 fn update_crc5(state: u8, data: &[u8], params: &CrcParams) -> u8 {
     let (table, refin) = match params.algorithm {
         CrcAlgorithm::Crc5Usb => (&tables::crc5::CRC5_USB_TABLE, true),
+        CrcAlgorithm::Crc5EpcC1G2 => (&tables::crc5::CRC5_EPC_C1G2_TABLE, false),
+        CrcAlgorithm::Crc5G704 => (&tables::crc5::CRC5_G_704_TABLE, true),
         CrcAlgorithm::CrcCustom => {
             return update_crc5_custom(state, data, params);
         }
@@ -324,6 +335,94 @@ fn update_crc5_custom(state: u8, data: &[u8], params: &CrcParams) -> u8 {
 
 #[cfg(not(feature = "alloc"))]
 fn update_crc5_custom(_state: u8, _data: &[u8], _params: &CrcParams) -> u8 {
+    _state
+}
+
+// ============================================================================
+// CRC-8 dispatch
+// ============================================================================
+
+fn update_crc8(state: u8, data: &[u8], params: &CrcParams) -> u8 {
+    let (table, refin) = match params.algorithm {
+        CrcAlgorithm::Crc8Smbus => (&tables::crc8::CRC8_SMBUS_TABLE, false),
+        CrcAlgorithm::Crc8I4321 => (&tables::crc8::CRC8_I_432_1_TABLE, false),
+        CrcAlgorithm::Crc8Rohc => (&tables::crc8::CRC8_ROHC_TABLE, true),
+        CrcAlgorithm::Crc8GsmA => (&tables::crc8::CRC8_GSM_A_TABLE, false),
+        CrcAlgorithm::Crc8MifareMad => (&tables::crc8::CRC8_MIFARE_MAD_TABLE, false),
+        CrcAlgorithm::Crc8ICode => (&tables::crc8::CRC8_I_CODE_TABLE, false),
+        CrcAlgorithm::Crc8Hitag => (&tables::crc8::CRC8_HITAG_TABLE, false),
+        CrcAlgorithm::Crc8SaeJ1850 => (&tables::crc8::CRC8_SAE_J1850_TABLE, false),
+        CrcAlgorithm::Crc8Tech3250 => (&tables::crc8::CRC8_TECH_3250_TABLE, true),
+        CrcAlgorithm::Crc8Opensafety => (&tables::crc8::CRC8_OPENSAFETY_TABLE, false),
+        CrcAlgorithm::Crc8Autosar => (&tables::crc8::CRC8_AUTOSAR_TABLE, false),
+        CrcAlgorithm::Crc8MaximDow => (&tables::crc8::CRC8_MAXIM_DOW_TABLE, true),
+        CrcAlgorithm::Crc8Nrsc5 => (&tables::crc8::CRC8_NRSC_5_TABLE, false),
+        CrcAlgorithm::Crc8Darc => (&tables::crc8::CRC8_DARC_TABLE, true),
+        CrcAlgorithm::Crc8GsmB => (&tables::crc8::CRC8_GSM_B_TABLE, false),
+        CrcAlgorithm::Crc8Lte => (&tables::crc8::CRC8_LTE_TABLE, false),
+        CrcAlgorithm::Crc8Wcdma => (&tables::crc8::CRC8_WCDMA_TABLE, true),
+        CrcAlgorithm::Crc8Cdma2000 => (&tables::crc8::CRC8_CDMA2000_TABLE, false),
+        CrcAlgorithm::Crc8Bluetooth => (&tables::crc8::CRC8_BLUETOOTH_TABLE, true),
+        CrcAlgorithm::Crc8DvbS2 => (&tables::crc8::CRC8_DVB_S2_TABLE, false),
+        CrcAlgorithm::CrcCustom => {
+            return update_crc8_custom(state, data, params);
+        }
+        _ => unsafe { core::hint::unreachable_unchecked() },
+    };
+
+    if refin {
+        (native_update_u32(state as u32, table, refin, data) & 0xff) as u8
+    } else {
+        let scaled = ((state as u32) & 0xff) << 24;
+        let res = native_update_u32(scaled, table, refin, data);
+        ((res >> 24) & 0xff) as u8
+    }
+}
+
+#[cfg(feature = "alloc")]
+fn update_crc8_custom(state: u8, data: &[u8], params: &CrcParams) -> u8 {
+    extern crate alloc;
+    use alloc::boxed::Box;
+
+    let refin = params.refin;
+
+    #[cfg(any(feature = "std", feature = "cache"))]
+    let table: &'static [[u32; 256]; 16] = {
+        let key: Crc8Key = (
+            params.poly as u32,
+            params.init as u32,
+            params.refin,
+            params.refout,
+            params.xorout as u32,
+            params.check as u32,
+        );
+
+        let cache = CUSTOM_CRC8_CACHE.call_once(|| Mutex::new(HashMap::new()));
+        let mut cache_guard = cache.lock();
+
+        cache_guard.entry(key).or_insert_with(|| {
+            let table = generate_table_u32(params.width, params.poly as u32, refin);
+            Box::leak(Box::new(table))
+        })
+    };
+
+    #[cfg(not(any(feature = "std", feature = "cache")))]
+    let table: &'static [[u32; 256]; 16] = {
+        let table = generate_table_u32(params.width, params.poly as u32, refin);
+        Box::leak(Box::new(table))
+    };
+
+    if refin {
+        (native_update_u32(state as u32, table, refin, data) & 0xff) as u8
+    } else {
+        let scaled = ((state as u32) & 0xff) << 24;
+        let res = native_update_u32(scaled, table, refin, data);
+        ((res >> 24) & 0xff) as u8
+    }
+}
+
+#[cfg(not(feature = "alloc"))]
+fn update_crc8_custom(_state: u8, _data: &[u8], _params: &CrcParams) -> u8 {
     _state
 }
 
@@ -1239,6 +1338,105 @@ mod property_tests {
                 result, *expected_check,
                 "{} check value mismatch: got 0x{:016X}, expected 0x{:016X}",
                 name, result, expected_check
+            );
+        }
+    }
+
+    /// Software fallback static tables for the newly added CRC-5/CRC-8 variants
+    /// SHALL produce the catalogue check values and match the `crc` crate
+    /// reference over fixed inputs, exercising `software::update` directly
+    /// (independent of host SIMD support).
+    #[test]
+    fn test_software_fallback_new_crc5_crc8_tables() {
+        use crate::crc5::consts::{CRC5_EPC_C1G2, CRC5_G_704};
+        use crate::crc8::consts::{
+            CRC8_AUTOSAR, CRC8_BLUETOOTH, CRC8_CDMA2000, CRC8_DARC, CRC8_DVB_S2, CRC8_GSM_A,
+            CRC8_GSM_B, CRC8_HITAG, CRC8_I_432_1, CRC8_I_CODE, CRC8_LTE, CRC8_MAXIM_DOW,
+            CRC8_MIFARE_MAD, CRC8_NRSC_5, CRC8_OPENSAFETY, CRC8_ROHC, CRC8_SAE_J1850, CRC8_SMBUS,
+            CRC8_TECH_3250, CRC8_WCDMA,
+        };
+        use crate::test::consts::{
+            RUST_CRC5_EPC_C1G2, RUST_CRC5_G_704, RUST_CRC8_AUTOSAR, RUST_CRC8_BLUETOOTH,
+            RUST_CRC8_CDMA2000, RUST_CRC8_DARC, RUST_CRC8_DVB_S2, RUST_CRC8_GSM_A, RUST_CRC8_GSM_B,
+            RUST_CRC8_HITAG, RUST_CRC8_I_432_1, RUST_CRC8_I_CODE, RUST_CRC8_LTE,
+            RUST_CRC8_MAXIM_DOW, RUST_CRC8_MIFARE_MAD, RUST_CRC8_NRSC_5, RUST_CRC8_OPENSAFETY,
+            RUST_CRC8_ROHC, RUST_CRC8_SAE_J1850, RUST_CRC8_SMBUS, RUST_CRC8_TECH_3250,
+            RUST_CRC8_WCDMA,
+        };
+
+        let test_cases: &[(&str, CrcParams, u64)] = &[
+            ("CRC-5/EPC-C1G2", CRC5_EPC_C1G2, 0x00),
+            ("CRC-5/G-704", CRC5_G_704, 0x07),
+            ("CRC-8/SMBUS", CRC8_SMBUS, 0xF4),
+            ("CRC-8/I-432-1", CRC8_I_432_1, 0xA1),
+            ("CRC-8/ROHC", CRC8_ROHC, 0xD0),
+            ("CRC-8/GSM-A", CRC8_GSM_A, 0x37),
+            ("CRC-8/MIFARE-MAD", CRC8_MIFARE_MAD, 0x99),
+            ("CRC-8/I-CODE", CRC8_I_CODE, 0x7E),
+            ("CRC-8/HITAG", CRC8_HITAG, 0xB4),
+            ("CRC-8/SAE-J1850", CRC8_SAE_J1850, 0x4B),
+            ("CRC-8/TECH-3250", CRC8_TECH_3250, 0x97),
+            ("CRC-8/OPENSAFETY", CRC8_OPENSAFETY, 0x3E),
+            ("CRC-8/AUTOSAR", CRC8_AUTOSAR, 0xDF),
+            ("CRC-8/MAXIM-DOW", CRC8_MAXIM_DOW, 0xA1),
+            ("CRC-8/NRSC-5", CRC8_NRSC_5, 0xF7),
+            ("CRC-8/DARC", CRC8_DARC, 0x15),
+            ("CRC-8/GSM-B", CRC8_GSM_B, 0x94),
+            ("CRC-8/LTE", CRC8_LTE, 0xEA),
+            ("CRC-8/WCDMA", CRC8_WCDMA, 0x25),
+            ("CRC-8/CDMA2000", CRC8_CDMA2000, 0xDA),
+            ("CRC-8/BLUETOOTH", CRC8_BLUETOOTH, 0x26),
+            ("CRC-8/DVB-S2", CRC8_DVB_S2, 0xBC),
+        ];
+
+        let mut pattern_256 = [0u8; 256];
+        for (i, byte) in pattern_256.iter_mut().enumerate() {
+            *byte = (i & 0xFF) as u8;
+        }
+        let inputs: &[&[u8]] = &[TEST_CHECK_STRING, b"", &pattern_256];
+
+        for (name, params, expected_check) in test_cases {
+            for input in inputs {
+                let result = super::update(params.init, input, params) ^ params.xorout;
+                let mut digest = match *name {
+                    "CRC-5/EPC-C1G2" => RUST_CRC5_EPC_C1G2.digest(),
+                    "CRC-5/G-704" => RUST_CRC5_G_704.digest(),
+                    "CRC-8/SMBUS" => RUST_CRC8_SMBUS.digest(),
+                    "CRC-8/I-432-1" => RUST_CRC8_I_432_1.digest(),
+                    "CRC-8/ROHC" => RUST_CRC8_ROHC.digest(),
+                    "CRC-8/GSM-A" => RUST_CRC8_GSM_A.digest(),
+                    "CRC-8/MIFARE-MAD" => RUST_CRC8_MIFARE_MAD.digest(),
+                    "CRC-8/I-CODE" => RUST_CRC8_I_CODE.digest(),
+                    "CRC-8/HITAG" => RUST_CRC8_HITAG.digest(),
+                    "CRC-8/SAE-J1850" => RUST_CRC8_SAE_J1850.digest(),
+                    "CRC-8/TECH-3250" => RUST_CRC8_TECH_3250.digest(),
+                    "CRC-8/OPENSAFETY" => RUST_CRC8_OPENSAFETY.digest(),
+                    "CRC-8/AUTOSAR" => RUST_CRC8_AUTOSAR.digest(),
+                    "CRC-8/MAXIM-DOW" => RUST_CRC8_MAXIM_DOW.digest(),
+                    "CRC-8/NRSC-5" => RUST_CRC8_NRSC_5.digest(),
+                    "CRC-8/DARC" => RUST_CRC8_DARC.digest(),
+                    "CRC-8/GSM-B" => RUST_CRC8_GSM_B.digest(),
+                    "CRC-8/LTE" => RUST_CRC8_LTE.digest(),
+                    "CRC-8/WCDMA" => RUST_CRC8_WCDMA.digest(),
+                    "CRC-8/CDMA2000" => RUST_CRC8_CDMA2000.digest(),
+                    "CRC-8/BLUETOOTH" => RUST_CRC8_BLUETOOTH.digest(),
+                    "CRC-8/DVB-S2" => RUST_CRC8_DVB_S2.digest(),
+                    _ => unreachable!(),
+                };
+                digest.update(input);
+                assert_eq!(
+                    result,
+                    digest.finalize() as u64,
+                    "{} software fallback mismatch for {} bytes",
+                    name,
+                    input.len()
+                );
+            }
+            assert_eq!(
+                super::update(params.init, TEST_CHECK_STRING, params) ^ params.xorout,
+                *expected_check,
+                "{} software fallback check value mismatch",
+                name
             );
         }
     }

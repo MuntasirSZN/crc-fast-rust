@@ -17,7 +17,7 @@
 
 ### Links
 
-* [ Any important other PRs, Issues, PRs, etc? ]
+- [ Any important other PRs, Issues, PRs, etc? ]
 
 ## Notes
 

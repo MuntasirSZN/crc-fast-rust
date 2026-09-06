@@ -46,6 +46,20 @@ pub const CRC64_ALGORITHMS: &[CrcAlgorithm] = &[
     CrcAlgorithm::Crc64Nvme,    // reflected
 ];
 
+// CRC-8 coverage: reflected + forward, reuses the same 32-bit-space SIMD folding path
+pub const CRC8_ALGORITHMS: &[CrcAlgorithm] = &[
+    CrcAlgorithm::Crc8Smbus,     // forward
+    CrcAlgorithm::Crc8MaximDow,  // reflected
+    CrcAlgorithm::Crc8Autosar,   // forward
+    CrcAlgorithm::Crc8Bluetooth, // reflected
+];
+
+// CRC-5 coverage: reflected + forward
+pub const CRC5_ALGORITHMS: &[CrcAlgorithm] = &[
+    CrcAlgorithm::Crc5Usb,     // reflected
+    CrcAlgorithm::Crc5EpcC1G2, // forward
+];
+
 #[inline(always)]
 fn random_data(size: i32) -> Vec<u8> {
     let mut rng = rng();
@@ -174,6 +188,106 @@ fn bench_crc64(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_crc32, bench_crc64);
+#[inline(always)]
+fn bench_crc8(c: &mut Criterion) {
+    println!(
+        "Acceleration target: {}",
+        crc_fast::get_calculator_target(CrcAlgorithm::Crc8Smbus)
+    );
+
+    let mut group = c.benchmark_group("CRC-8");
+
+    for (size_name, size) in SIZES {
+        let buf = create_aligned_data(&random_data(*size));
+
+        let (part1, rest) = buf.split_at(buf.len() / 4);
+        let (part2, rest) = rest.split_at(rest.len() / 3);
+        let (part3, part4) = rest.split_at(rest.len() / 2);
+
+        for algorithm in CRC8_ALGORITHMS {
+            let algorithm_name = algorithm.to_string();
+            let mut algorithm_name_parts = algorithm_name.split('/');
+            let _ = algorithm_name_parts.next();
+            let alg_suffix = algorithm_name_parts.next();
+
+            group.throughput(Throughput::Bytes(*size as u64));
+            group.sample_size(1000);
+            group.measurement_time(Duration::from_secs(30));
+
+            let bench_name = [alg_suffix.unwrap(), "(checksum)"].join(" ");
+
+            group.bench_function(BenchmarkId::new(bench_name, size_name), |b| {
+                b.iter(|| black_box(checksum(*algorithm, &buf)))
+            });
+
+            let bench_name = [algorithm_name.clone(), "(4-part digest)".parse().unwrap()].join(" ");
+
+            group.bench_function(BenchmarkId::new(bench_name, size_name), |b| {
+                b.iter(|| {
+                    black_box({
+                        let mut digest = crc_fast::Digest::new(*algorithm);
+                        digest.update(part1);
+                        digest.update(part2);
+                        digest.update(part3);
+                        digest.update(part4);
+                        digest.finalize()
+                    })
+                })
+            });
+        }
+    }
+}
+
+#[inline(always)]
+fn bench_crc5(c: &mut Criterion) {
+    println!(
+        "Acceleration target: {}",
+        crc_fast::get_calculator_target(CrcAlgorithm::Crc5Usb)
+    );
+
+    let mut group = c.benchmark_group("CRC-5");
+
+    for (size_name, size) in SIZES {
+        let buf = create_aligned_data(&random_data(*size));
+
+        let (part1, rest) = buf.split_at(buf.len() / 4);
+        let (part2, rest) = rest.split_at(rest.len() / 3);
+        let (part3, part4) = rest.split_at(rest.len() / 2);
+
+        for algorithm in CRC5_ALGORITHMS {
+            let algorithm_name = algorithm.to_string();
+            let mut algorithm_name_parts = algorithm_name.split('/');
+            let _ = algorithm_name_parts.next();
+            let alg_suffix = algorithm_name_parts.next();
+
+            group.throughput(Throughput::Bytes(*size as u64));
+            group.sample_size(1000);
+            group.measurement_time(Duration::from_secs(30));
+
+            let bench_name = [alg_suffix.unwrap(), "(checksum)"].join(" ");
+
+            group.bench_function(BenchmarkId::new(bench_name, size_name), |b| {
+                b.iter(|| black_box(checksum(*algorithm, &buf)))
+            });
+
+            let bench_name = [algorithm_name.clone(), "(4-part digest)".parse().unwrap()].join(" ");
+
+            group.bench_function(BenchmarkId::new(bench_name, size_name), |b| {
+                b.iter(|| {
+                    black_box({
+                        let mut digest = crc_fast::Digest::new(*algorithm);
+                        digest.update(part1);
+                        digest.update(part2);
+                        digest.update(part3);
+                        digest.update(part4);
+                        digest.finalize()
+                    })
+                })
+            });
+        }
+    }
+}
+
+criterion_group!(benches, bench_crc32, bench_crc64, bench_crc8, bench_crc5);
 
 criterion_main!(benches);

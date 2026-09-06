@@ -6,7 +6,7 @@
 [![Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/crc-fast)
 
 World's fastest generic CRC calculator for
-[all known CRC-5, CRC-16, CRC-31, CRC-32, and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm), as well as bring-your-own
+[all known CRC-5, CRC-8, CRC-16, CRC-31, CRC-32, and CRC-64 variants](https://reveng.sourceforge.io/crc-catalogue/all.htm), as well as bring-your-own
 custom parameters, using SIMD intrinsics,
 which can exceed [100GiB/s](#performance) on modern systems.
 
@@ -28,9 +28,9 @@ Supplies a [C/C++ compatible library](#cc-compatible-library) for use with other
 
 ## Implementations
 
-* [AWS SDK for Rust](https://awslabs.github.io/aws-sdk-rust/) via
+- [AWS SDK for Rust](https://awslabs.github.io/aws-sdk-rust/) via
   the [aws-smithy-checksums](https://crates.io/crates/aws-smithy-checksums) crate.
-* [crc-fast-php-ext](https://github.com/awesomized/crc-fast-php-ext) `PHP` extension using this library.
+- [crc-fast-php-ext](https://github.com/awesomized/crc-fast-php-ext) `PHP` extension using this library.
 
 ## Changes
 
@@ -41,7 +41,7 @@ See [CHANGELOG](CHANGELOG.md).
 ### Library
 
 `cargo build --release` will obviously build the Rust library, including
-the  [C/C++ compatible dynamic and static libraries](#cc-compatible-library).
+the [C/C++ compatible dynamic and static libraries](#cc-compatible-library).
 
 ### CLI tools
 
@@ -55,7 +55,7 @@ To build them, enable the `cli` feature: `cargo build --features cli --release`.
 
 ### Everything
 
-To build the libraries and the CLI tools, use the `--all-features` flag:  `cargo build --all-features --release`. 
+To build the libraries and the CLI tools, use the `--all-features` flag: `cargo build --all-features --release`.
 
 A _very_ basic [Makefile](Makefile) is supplied which supports `make install` to install the libraries, header file, and
 CLI binaries to the local system. Specifying the `DESTDIR` environment variable will allow you to customize the install
@@ -70,14 +70,16 @@ DESTDIR=/my/custom/path make install
 The library supports various feature flags for different environments:
 
 ### Default Features
-* `std` - Standard library support, includes `alloc`
-* `ffi` - C/C++ FFI bindings for shared library (will become optional in v2.0)
-* `panic-handler` - Provides panic handler for `no_std` environments (disable when building binaries)
+
+- `std` - Standard library support, includes `alloc`
+- `ffi` - C/C++ FFI bindings for shared library (will become optional in v2.0)
+- `panic-handler` - Provides panic handler for `no_std` environments (disable when building binaries)
 
 ### Optional Features
-* `alloc` - Heap allocation support (enables `Digest` trait, custom CRC params, checksum combining)
-* `cache` - Caches generated constants for custom CRC parameters (requires `alloc`)
-* `cli` - Enables command-line tools (`checksum`, `arch-check`, `get-custom-params`)
+
+- `alloc` - Heap allocation support (enables `Digest` trait, custom CRC params, checksum combining)
+- `cache` - Caches generated constants for custom CRC parameters (requires `alloc`)
+- `cli` - Enables command-line tools (`checksum`, `arch-check`, `get-custom-params`)
 
 ### Building for `no_std`
 
@@ -122,7 +124,7 @@ the `stable` toolchain.
 ### Fast helper functions
 
 For the [most common and popular](#important-crc-variants) CRC variants, there are specialized one-shot functions to make adoption easier and
-performance faster, particularly for smaller input sizes, since it reduces some of the overhead of the generic 
+performance faster, particularly for smaller input sizes, since it reduces some of the overhead of the generic
 `checksum` path.
 
 #### CRC-32/ISCSI
@@ -157,7 +159,7 @@ use crc_fast::crc64_nvme;
 let checksum = crc64_nvme(b"123456789");
 
 assert_eq!(checksum, 0xae8b14860a799888);
-``` 
+```
 
 ### Digest
 
@@ -167,8 +169,8 @@ trait for easier integration with existing Rust code.
 Creates a `Digest` which can be updated over time, for stream processing, intermittent workloads, etc, enabling
 finalizing the checksum once processing is complete.
 
- ```rust
- use crc_fast::{Digest, CrcAlgorithm::Crc32IsoHdlc};
+```rust
+use crc_fast::{Digest, CrcAlgorithm::Crc32IsoHdlc};
 
 let mut digest = Digest::new(Crc32IsoHdlc);
 digest.update(b"1234");
@@ -176,14 +178,14 @@ digest.update(b"56789");
 let checksum = digest.finalize();
 
 assert_eq!(checksum, 0xcbf43926);
- ```
+```
 
 ### Digest Write
 
 Implements the [std::io::Write](https://doc.rust-lang.org/std/io/trait.Write.html) trait for
 easier integration with existing Rust code.
 
- ```rust
+```rust
 use std::env;
 use std::fs::File;
 use crc_fast::{Digest, CrcAlgorithm::Crc32IsoHdlc};
@@ -199,7 +201,7 @@ std::io::copy( & mut file, & mut digest).unwrap();
 let checksum = digest.finalize();
 
 assert_eq!(checksum, 0xcbf43926);
- ```
+```
 
 ### checksum
 
@@ -211,7 +213,7 @@ Checksums a string.
 let checksum = checksum(Crc32IsoHdlc, b"123456789");
 
 assert_eq!(checksum, 0xcbf43926);
- ```
+```
 
 ### checksum_combine
 
@@ -225,7 +227,7 @@ let checksum_2 = checksum(Crc32IsoHdlc, b"56789");
 let checksum = checksum_combine(Crc32IsoHdlc, checksum_1, checksum_2, 5);
 
 assert_eq!(checksum, 0xcbf43926);
- ```
+```
 
 ### checksum_file
 
@@ -242,7 +244,7 @@ let file_on_disk = binding.to_str().unwrap();
 let checksum = checksum_file(Crc32IsoHdlc, file_on_disk, None);
 
 assert_eq!(checksum.unwrap(), 0xcbf43926);
- ```
+```
 
 ## Custom CRC Parameters
 
@@ -415,19 +417,20 @@ but all known public & private implementations agree on the correct value, which
 
 # Acceleration targets
 
-This library has baseline support for accelerating all known `CRC-16`, `CRC-32`, and `CRC-64` variants on `aarch64`,
-`x86_64`, and
+This library has baseline support for accelerating all known `CRC-5`, `CRC-8`, `CRC-16`, `CRC-31`, `CRC-32`,
+and `CRC-64` variants on `aarch64`, `x86_64`, and
 `x86` internally in pure `Rust`.
 
 It uses the best available acceleration method for the detected CPU features at runtime, including:
-* `aarch64`:
-  * `neon-pmull-sha3` (preferred, if available)
-  * `neon-pmull`
-* `x86_64` and `x86`:
-    * `avx512-vpclmulqdq` (preferred, if available)
-    * `avx512-pclmulqdq`
-    * `sse-pclmulqdq`
-  
+
+- `aarch64`:
+  - `neon-pmull-sha3` (preferred, if available)
+  - `neon-pmull`
+- `x86_64` and `x86`:
+  - `avx512-vpclmulqdq` (preferred, if available)
+  - `avx512-pclmulqdq`
+  - `sse-pclmulqdq`
+
 There is a safe table-based software fallback for other architectures, or if no acceleration features are detected.
 
 ### Checking your platform capabilities
@@ -453,7 +456,7 @@ Supported Rust Version (MSRV).
 Bumping the `rust-version` will be considered a **MINOR** version bump.
 
 We'll try to support even older versions when possible, but given the high-performance use of SIMD intrinsics and other
-modern Rust features, this is merely a stated goal. We'll move up to `stable-2` ASAP when a sufficiently high 
+modern Rust features, this is merely a stated goal. We'll move up to `stable-2` ASAP when a sufficiently high
 performance improvement or necessary feature requires it.
 
 ## Performance
@@ -469,7 +472,7 @@ This is a summary of the performance for the most important and popular CRC chec
 AKA `crc32c` in many, but not all, implementations.
 
 | Arch    | Brand | CPU             | System                    | Target            | 1KiB (GiB/s) | 1MiB (GiB/s) |
-|:--------|:------|:----------------|:--------------------------|:------------------|-------------:|-------------:|
+| :------ | :---- | :-------------- | :------------------------ | :---------------- | -----------: | -----------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-24xl        | avx512-vpclmulqdq |          ~61 |         ~111 |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx512-vpclmulqdq |          ~26 |          ~54 |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon-pmull-sha3   |          ~23 |          ~54 |
@@ -482,7 +485,7 @@ AKA `crc32c` in many, but not all, implementations.
 AKA `crc32` in many, but not all, implementations.
 
 | Arch    | Brand | CPU             | System                    | Target            | 1KiB (GiB/s) | 1MiB (GiB/s) |
-|:--------|:------|:----------------|:--------------------------|:------------------|-------------:|-------------:|
+| :------ | :---- | :-------------- | :------------------------ | :---------------- | -----------: | -----------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-248xl       | avx512-vpclmulqdq |          ~28 |          ~88 |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx512-vpclmulqdq |          ~21 |          ~55 |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon-pmull-sha3   |          ~23 |          ~54 |
@@ -495,7 +498,7 @@ AKA `crc32` in many, but not all, implementations.
 [AWS S3's recommended checksum option](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 
 | Arch    | Brand | CPU             | System                    | Target            | 1KiB (GiB/s) | 1MiB (GiB/s) |
-|:--------|:------|:----------------|:--------------------------|:------------------|-------------:|-------------:|
+| :------ | :---- | :-------------- | :------------------------ | :---------------- | -----------: | -----------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-24xl        | avx512-vpclmulqdq |          ~28 |          ~88 |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx512-vpclmulqdq |          ~22 |          ~55 |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon-pmull-sha3   |          ~28 |          ~41 |
@@ -506,7 +509,7 @@ AKA `crc32` in many, but not all, implementations.
 ### CRC-32/BZIP2 (forward)
 
 | Arch    | Brand | CPU             | System                    | Target            | 1KiB (GiB/s) | 1MiB (GiB/s) |
-|:--------|:------|:----------------|:--------------------------|:------------------|-------------:|-------------:|
+| :------ | :---- | :-------------- | :------------------------ | :---------------- | -----------: | -----------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-24xl        | avx512-vpclmulqdq |          ~20 |          ~56 |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx512-vpclmulqdq |          ~14 |          ~43 |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon-pmull-eor3   |          ~18 |          ~40 |
@@ -517,7 +520,7 @@ AKA `crc32` in many, but not all, implementations.
 ### CRC-64/ECMA-182 (forward)
 
 | Arch    | Brand | CPU             | System                    | Target            | 1KiB (GiB/s) | 1MiB (GiB/s) |
-|:--------|:------|:----------------|:--------------------------|:------------------|-------------:|-------------:|
+| :------ | :---- | :-------------- | :------------------------ | :---------------- | -----------: | -----------: |
 | x86_64  | Intel | Sapphire Rapids | EC2 c7i.metal-24xl        | avx512-vpclmulqdq |          ~21 |          ~56 |
 | x86_64  | AMD   | Genoa           | EC2 c7a.metal-48xl        | avx512-vpclmulqdq |          ~14 |          ~43 |
 | aarch64 | AWS   | Graviton4       | EC2 c8g.metal-48xl        | neon-pmull-eor3   |          ~19 |          ~40 |
@@ -525,16 +528,41 @@ AKA `crc32` in many, but not all, implementations.
 | aarch64 | Apple | M3 Ultra        | Mac Studio (32 core)      | neon-pmull-eor3   |          ~40 |          ~59 |
 | aarch64 | Apple | M4 Max          | MacBook Pro 16" (16 core) | neon-pmull-eor3   |          ~46 |          ~61 |
 
+### CRC-8 (reflected + forward)
+
+`CRC-8` is scaled into the same 32-bit-space SIMD folding path as `CRC-32`, so throughput tracks the `CRC-32`
+rows above on the same target. Measured on local dev (`i3-12100`, `sse-pclmulqdq`):
+
+| Variant         | Direction | 1KiB (GiB/s) | 1MiB (GiB/s) |
+| :-------------- | :-------- | -----------: | -----------: |
+| CRC-8/SMBUS     | forward   |        ~20.0 |        ~28.1 |
+| CRC-8/MAXIM-DOW | reflected |        ~21.0 |        ~28.4 |
+| CRC-8/AUTOSAR   | forward   |        ~19.9 |        ~30.2 |
+| CRC-8/BLUETOOTH | reflected |        ~21.0 |        ~30.4 |
+
+### CRC-5 (reflected + forward)
+
+Same shared folding path as `CRC-8`. Measured on local dev (`i3-12100`, `sse-pclmulqdq`):
+
+| Variant        | Direction | 1KiB (GiB/s) | 1MiB (GiB/s) |
+| :------------- | :-------- | -----------: | -----------: |
+| CRC-5/USB      | reflected |        ~20.3 |        ~30.3 |
+| CRC-5/EPC-C1G2 | forward   |        ~20.5 |        ~30.4 |
+
+See [benches/README.md](benches/README.md) for the full per-target benchmark matrix and how to run
+(`cargo bench --bench benchmark -- CRC-8`, `cargo bench --bench benchmark -- CRC-5`).
+
 ## Other CRC widths
 
 There are [a lot of other known CRC widths and variants](https://reveng.sourceforge.io/crc-catalogue/all.htm), ranging
 from `CRC-3/GSM` to `CRC-82/DARC`, and everything in between.
 
-Since [Awesome](https://awesome.co) only uses  `CRC-32` or `CRC-64` widths in our products, this library began by supporting only those
+Since [Awesome](https://awesome.co) only uses `CRC-32` or `CRC-64` widths in our products, this library began by supporting only those
 widths, including all known variants plus support for custom [Rocksoft](http://www.ross.net/crc/download/crc_v3.txt)
 parameters.
 
-`CRC-16` has since been added, including all known variants plus support for custom parameters as well.
+`CRC-5`, `CRC-8`, `CRC-16`, and `CRC-31` have since been added, including all known variants plus support for
+custom parameters as well.
 
 In theory, much of the "heavy lifting" has been done, so it should be possible to add other widths with minimal effort.
 
@@ -549,40 +577,40 @@ To help ensure memory safety and stability, this crate is validated using [Miri]
 
 ## References
 
-* [Catalogue of parametrised CRC algorithms](https://reveng.sourceforge.io/crc-catalogue/all.htm)
-* [crc32-fast](https://crates.io/crates/crc32fast) Original `CRC-32/ISO-HDLC` (`crc32`) implementation in `Rust`.
-* [crc64-fast](https://github.com/tikv/crc64fast) Original `CRC-64/XZ` implementation in `Rust`.
-* [crc64fast-nvme](https://github.com/awesomized/crc64fast-nvme) Original `CRC-64/NVME` implementation in `Rust`.
-* [Fast CRC Computation for Generic Polynomials Using PCLMULQDQ Instruction](https://web.archive.org/web/20131224125630/https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf)
+- [Catalogue of parametrised CRC algorithms](https://reveng.sourceforge.io/crc-catalogue/all.htm)
+- [crc32-fast](https://crates.io/crates/crc32fast) Original `CRC-32/ISO-HDLC` (`crc32`) implementation in `Rust`.
+- [crc64-fast](https://github.com/tikv/crc64fast) Original `CRC-64/XZ` implementation in `Rust`.
+- [crc64fast-nvme](https://github.com/awesomized/crc64fast-nvme) Original `CRC-64/NVME` implementation in `Rust`.
+- [Fast CRC Computation for Generic Polynomials Using PCLMULQDQ Instruction](https://web.archive.org/web/20131224125630/https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf)
   Intel's paper.
-* [NVM Express® NVM Command Set Specification](https://nvmexpress.org/wp-content/uploads/NVM-Express-NVM-Command-Set-Specification-1.0d-2023.12.28-Ratified.pdf)
+- [NVM Express® NVM Command Set Specification](https://nvmexpress.org/wp-content/uploads/NVM-Express-NVM-Command-Set-Specification-1.0d-2023.12.28-Ratified.pdf)
   The NVMe spec, including `CRC-64-NVME` (with incorrect endian `Check` value in
   `Section 5.2.1.3.4, Figure 120, page 83`).
-* [CRC-64/NVME](https://reveng.sourceforge.io/crc-catalogue/all.htm#crc.cat.crc-64-nvme) The `CRC-64/NVME` quick
+- [CRC-64/NVME](https://reveng.sourceforge.io/crc-catalogue/all.htm#crc.cat.crc-64-nvme) The `CRC-64/NVME` quick
   definition.
-* [A PAINLESS GUIDE TO CRC ERROR DETECTION ALGORITHMS](http://www.ross.net/crc/download/crc_v3.txt) Best description of
+- [A PAINLESS GUIDE TO CRC ERROR DETECTION ALGORITHMS](http://www.ross.net/crc/download/crc_v3.txt) Best description of
   CRC I've seen to date (and the definition of the Rocksoft model).
-* [Linux implementation](https://github.com/torvalds/linux/blob/786c8248dbd33a5a7a07f7c6e55a7bfc68d2ca48/lib/crc64.c)
+- [Linux implementation](https://github.com/torvalds/linux/blob/786c8248dbd33a5a7a07f7c6e55a7bfc68d2ca48/lib/crc64.c)
   Linux implementation of `CRC-64/NVME`.
-* [MASM/C++ artifacts implementation](https://github.com/jeffareid/crc/) - Reference MASM/C++ implementation for
+- [MASM/C++ artifacts implementation](https://github.com/jeffareid/crc/) - Reference MASM/C++ implementation for
   generating artifacts.
-* [Intel isa-l GH issue #88](https://github.com/intel/isa-l/issues/88) - Additional insight into generating artifacts.
-* [StackOverflow PCLMULQDQ CRC32 answer](https://stackoverflow.com/questions/71328336/fast-crc-with-pclmulqdq-not-reflected/71329114#71329114)
+- [Intel isa-l GH issue #88](https://github.com/intel/isa-l/issues/88) - Additional insight into generating artifacts.
+- [StackOverflow PCLMULQDQ CRC32 answer](https://stackoverflow.com/questions/71328336/fast-crc-with-pclmulqdq-not-reflected/71329114#71329114)
   Insightful answer to implementation details for CRC32.
-* [StackOverflow PCLMULQDQ CRC32 question](https://stackoverflow.com/questions/21171733/calculating-constants-for-crc32-using-pclmulqdq)
+- [StackOverflow PCLMULQDQ CRC32 question](https://stackoverflow.com/questions/21171733/calculating-constants-for-crc32-using-pclmulqdq)
   Insightful question & answer to CRC32 implementation details.
-* [AWS S3 announcement about CRC64-NVME support](https://aws.amazon.com/blogs/aws/introducing-default-data-integrity-protections-for-new-objects-in-amazon-s3/)
-* [AWS S3 docs on checking object integrity using CRC64-NVME](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-* [Vector Carry-Less Multiplication of Quadwords (VPCLMULQDQ) details](https://en.wikichip.org/wiki/x86/vpclmulqdq)
-* [Linux kernel updates by Eric Biggers to use VPCLMULQDQ, etc](https://lkml.org/lkml/2025/2/10/1367)
-* [Faster CRC32-C on x86](https://www.corsix.org/content/fast-crc32c-4k)
-* [Faster CRC32 on the Apple M1](https://dougallj.wordpress.com/2022/05/22/faster-crc32-on-the-apple-m1/)
-* [An alternative exposition of crc32_4k_pclmulqdq](https://www.corsix.org/content/alternative-exposition-crc32_4k_pclmulqdq)
-* [fast-crc32](https://github.com/corsix/fast-crc32) - implementations of fusion for two CRC-32 variants.
+- [AWS S3 announcement about CRC64-NVME support](https://aws.amazon.com/blogs/aws/introducing-default-data-integrity-protections-for-new-objects-in-amazon-s3/)
+- [AWS S3 docs on checking object integrity using CRC64-NVME](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+- [Vector Carry-Less Multiplication of Quadwords (VPCLMULQDQ) details](https://en.wikichip.org/wiki/x86/vpclmulqdq)
+- [Linux kernel updates by Eric Biggers to use VPCLMULQDQ, etc](https://lkml.org/lkml/2025/2/10/1367)
+- [Faster CRC32-C on x86](https://www.corsix.org/content/fast-crc32c-4k)
+- [Faster CRC32 on the Apple M1](https://dougallj.wordpress.com/2022/05/22/faster-crc32-on-the-apple-m1/)
+- [An alternative exposition of crc32_4k_pclmulqdq](https://www.corsix.org/content/alternative-exposition-crc32_4k_pclmulqdq)
+- [fast-crc32](https://github.com/corsix/fast-crc32) - implementations of fusion for two CRC-32 variants.
 
 ## License
 
 `cfc-fast` is dual-licensed under
 
-* Apache 2.0 license ([LICENSE-Apache](./LICENSE-Apache) or <http://www.apache.org/licenses/LICENSE-2.0>)
-* MIT license ([LICENSE-MIT](./LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+- Apache 2.0 license ([LICENSE-Apache](./LICENSE-Apache) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](./LICENSE-MIT) or <https://opensource.org/licenses/MIT>)

@@ -19,6 +19,7 @@ fn main() {
     println!();
 
     generate_crc5_tables();
+    generate_crc8_tables();
     generate_crc16_tables();
     generate_crc31_tables();
     generate_crc32_tables();
@@ -30,10 +31,50 @@ fn generate_crc5_tables() {
     println!("    //! CRC-5 lookup tables");
     println!();
 
-    let algorithms: &[(&str, u32, bool)] = &[("USB", 0x05, true)];
+    let algorithms: &[(&str, u32, bool)] = &[
+        ("USB", 0x05, true),
+        ("EPC_C1G2", 0x09, false),
+        ("G_704", 0x15, true),
+    ];
 
     for (name, poly, reflect) in algorithms {
         print_table_u32_with_prefix("CRC5", name, 5, *poly, *reflect);
+    }
+
+    println!("}}");
+    println!();
+}
+
+fn generate_crc8_tables() {
+    println!("pub mod crc8 {{");
+    println!("    //! CRC-8 lookup tables");
+    println!();
+
+    let algorithms: &[(&str, u32, bool)] = &[
+        ("SMBUS", 0x07, false),
+        ("I_432_1", 0x07, false),
+        ("ROHC", 0x07, true),
+        ("GSM_A", 0x1d, false),
+        ("MIFARE_MAD", 0x1d, false),
+        ("I_CODE", 0x1d, false),
+        ("HITAG", 0x1d, false),
+        ("SAE_J1850", 0x1d, false),
+        ("TECH_3250", 0x1d, true),
+        ("OPENSAFETY", 0x2f, false),
+        ("AUTOSAR", 0x2f, false),
+        ("MAXIM_DOW", 0x31, true),
+        ("NRSC_5", 0x31, false),
+        ("DARC", 0x39, true),
+        ("GSM_B", 0x49, false),
+        ("LTE", 0x9b, false),
+        ("WCDMA", 0x9b, true),
+        ("CDMA2000", 0x9b, false),
+        ("BLUETOOTH", 0xa7, true),
+        ("DVB_S2", 0xd5, false),
+    ];
+
+    for (name, poly, reflect) in algorithms {
+        print_table_u32_with_prefix("CRC8", name, 8, *poly, *reflect);
     }
 
     println!("}}");

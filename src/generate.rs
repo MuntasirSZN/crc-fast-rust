@@ -242,6 +242,9 @@ const CRC64_EXPONENTS: [u64; 23] = [
 /// Exponents for CRC-5 - scaled to 32-bit space, same as CRC-32 exponents
 const CRC5_EXPONENTS: [u64; 23] = CRC32_EXPONENTS;
 
+/// Exponents for CRC-8 - scaled to 32-bit space, same as CRC-32 exponents
+const CRC8_EXPONENTS: [u64; 23] = CRC32_EXPONENTS;
+
 /// Exponents for CRC-31 - scaled to 32-bit space, same as CRC-32 exponents
 const CRC31_EXPONENTS: [u64; 23] = CRC32_EXPONENTS;
 
@@ -252,6 +255,8 @@ pub fn keys(width: u8, poly: u64, reflected: bool) -> [u64; 23] {
 
     let exponents = if 5 == width {
         CRC5_EXPONENTS
+    } else if 8 == width {
+        CRC8_EXPONENTS
     } else if 16 == width {
         CRC16_EXPONENTS
     } else if 31 == width {
@@ -267,6 +272,9 @@ pub fn keys(width: u8, poly: u64, reflected: bool) -> [u64; 23] {
     let poly = if 5 == width {
         // CRC-5 scaled to 32-bit space: shift left 27 and set bit 32
         (poly << 27) | (1u64 << 32)
+    } else if 8 == width {
+        // CRC-8 scaled to 32-bit space: shift left 24 and set bit 32
+        (poly << 24) | (1u64 << 32)
     } else if 16 == width {
         // CRC-16 uses a 17-bit polynomial (16 bits + implicit leading 1) scaled to 32-bit space
         (poly << 16) | (1u64 << 32)
@@ -292,6 +300,8 @@ pub fn keys(width: u8, poly: u64, reflected: bool) -> [u64; 23] {
 fn key(width: u8, poly: u64, reflected: bool, exponent: u64) -> u64 {
     if width == 5 {
         crc5_key(exponent, reflected, poly)
+    } else if width == 8 {
+        crc8_key(exponent, reflected, poly)
     } else if width == 16 {
         crc16_key(exponent, reflected, poly)
     } else if width == 31 {
@@ -345,6 +355,11 @@ fn crc16_key(exponent: u64, reflected: bool, polynomial: u64) -> u64 {
 
 fn crc5_key(exponent: u64, reflected: bool, polynomial: u64) -> u64 {
     // CRC-5 scaled to 32-bit uses same algorithm as CRC-32
+    crc32_key(exponent, reflected, polynomial)
+}
+
+fn crc8_key(exponent: u64, reflected: bool, polynomial: u64) -> u64 {
+    // CRC-8 scaled to 32-bit uses same algorithm as CRC-32
     crc32_key(exponent, reflected, polynomial)
 }
 
@@ -455,6 +470,8 @@ fn crc64_key(exponent: u64, reflected: bool, polynomial: u64) -> u64 {
 fn polynomial(width: u8, polynomial: u64, reflected: bool) -> u64 {
     if width == 5 {
         crc5_polynomial(polynomial, reflected)
+    } else if width == 8 {
+        crc8_polynomial(polynomial, reflected)
     } else if width == 16 {
         crc16_polynomial(polynomial, reflected)
     } else if width == 31 {
@@ -510,6 +527,16 @@ fn crc5_polynomial(polynomial: u64, reflected: bool) -> u64 {
         }
     }
     ((rev5 as u64) << 1) | 1
+}
+
+fn crc8_polynomial(polynomial: u64, reflected: bool) -> u64 {
+    if !reflected {
+        return polynomial;
+    }
+    // Extract original 8-bit poly from scaled polynomial (poly <<24 | 1<<32)
+    let original_poly = ((polynomial >> 24) & 0xFF) as u8;
+    let reversed = original_poly.reverse_bits();
+    ((reversed as u64) << 1) | 1
 }
 
 fn crc31_polynomial(polynomial: u64, reflected: bool) -> u64 {
@@ -589,6 +616,8 @@ fn crc64_polynomial(polynomial: u64, reflected: bool) -> u64 {
 fn mu(width: u8, polynomial: u64, reflected: bool) -> u64 {
     if width == 5 {
         crc5_mu(polynomial, reflected)
+    } else if width == 8 {
+        crc8_mu(polynomial, reflected)
     } else if width == 16 {
         crc16_mu(polynomial, reflected)
     } else if width == 31 {
@@ -642,6 +671,11 @@ fn crc16_mu(polynomial: u64, reflected: bool) -> u64 {
 
 fn crc5_mu(polynomial: u64, reflected: bool) -> u64 {
     // CRC-5 scaled to 32-bit uses same mu as CRC-32
+    crc32_mu(polynomial, reflected)
+}
+
+fn crc8_mu(polynomial: u64, reflected: bool) -> u64 {
+    // CRC-8 scaled to 32-bit uses same mu as CRC-32
     crc32_mu(polynomial, reflected)
 }
 
