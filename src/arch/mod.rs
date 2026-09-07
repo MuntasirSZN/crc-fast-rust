@@ -29,6 +29,9 @@ pub mod x86_64;
 /// Dispatch `state/bytes/params` to the width-generic `algorithm::update`.
 /// Single source for the 7-arm `params.width` match repeated by every
 /// arch-specific `update_*` wrapper.
+/// Unused on targets outside x86/x86_64/aarch64, where every use site is
+/// cfg'd out (the software fallback needs no dispatch).
+#[allow(unused_macros)]
 macro_rules! dispatch_width {
     ($state:expr, $bytes:expr, $params:expr, $ops:expr) => {{
         match $params.width {

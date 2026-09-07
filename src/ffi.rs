@@ -45,16 +45,18 @@ pub enum CrcFastError {
 }
 
 impl CrcFastError {
-    /// Returns a static string describing the error
-    fn message(&self) -> &'static str {
+    /// Returns a static NUL-terminated string describing the error.
+    /// Single source for the message text; the pointer is valid forever
+    /// with nothing to free, matching the FFI "do not free" contract.
+    fn message_cstr(&self) -> &'static CStr {
         match self {
-            CrcFastError::Success => "Operation completed successfully",
-            CrcFastError::NullPointer => "Null pointer was passed where non-null required",
-            CrcFastError::InvalidKeyCount => "Invalid key count for CRC parameters",
-            CrcFastError::UnsupportedWidth => "Unsupported CRC width (must be 32 or 64)",
-            CrcFastError::InvalidUtf8 => "Invalid UTF-8 string",
-            CrcFastError::IoError => "File I/O error",
-            CrcFastError::StringConversionError => "Internal string conversion error",
+            CrcFastError::Success => c"Operation completed successfully",
+            CrcFastError::NullPointer => c"Null pointer was passed where non-null required",
+            CrcFastError::InvalidKeyCount => c"Invalid key count for CRC parameters",
+            CrcFastError::UnsupportedWidth => c"Unsupported CRC width (must be 32 or 64)",
+            CrcFastError::InvalidUtf8 => c"Invalid UTF-8 string",
+            CrcFastError::IoError => c"File I/O error",
+            CrcFastError::StringConversionError => c"Internal string conversion error",
         }
     }
 }
@@ -330,17 +332,7 @@ pub extern "C" fn crc_fast_clear_error() {
 /// Returns a pointer to a static string (do not free)
 #[no_mangle]
 pub extern "C" fn crc_fast_error_message(error: CrcFastError) -> *const c_char {
-    let message = error.message();
-    // These are static strings, so we can safely return them as C strings
-    // The strings are guaranteed to be valid UTF-8 and null-terminated
-    match alloc::ffi::CString::new(message) {
-        Ok(c_str) => {
-            // Leak the string so it remains valid for the lifetime of the program
-            // This is safe because error messages are static and small
-            Box::leak(Box::new(c_str)).as_ptr()
-        }
-        Err(_) => core::ptr::null(),
-    }
+    error.message_cstr().as_ptr()
 }
 
 /// Custom CRC parameters
@@ -1062,14 +1054,10 @@ mod tests {
     fn digest_null_handles_set_error_without_crashing() {
         crc_fast_digest_update(core::ptr::null_mut(), b"x".as_ptr() as *const c_char, 1);
         assert_eq!(crc_fast_get_last_error(), CrcFastError::NullPointer);
-        crc_fast_digest_update(
-            crc_fast_digest_new(CrcFastAlgorithm::Crc32IsoHdlc),
-            core::ptr::null(),
-            1,
-        );
-        // Leaked handle from the line above is intentional for this guard test;
-        // the important part is no crash and error recorded.
+        let guard_handle = crc_fast_digest_new(CrcFastAlgorithm::Crc32IsoHdlc);
+        crc_fast_digest_update(guard_handle, core::ptr::null(), 1);
         assert_eq!(crc_fast_get_last_error(), CrcFastError::NullPointer);
+        crc_fast_digest_free(guard_handle);
         assert_eq!(crc_fast_digest_finalize(core::ptr::null_mut()), 0);
         assert_eq!(crc_fast_digest_finalize_reset(core::ptr::null_mut()), 0);
         assert_eq!(crc_fast_digest_get_amount(core::ptr::null_mut()), 0);
