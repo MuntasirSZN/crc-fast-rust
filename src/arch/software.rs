@@ -1421,6 +1421,8 @@ mod property_tests {
 #[cfg(test)]
 mod carryless_tests {
     use super::carryless_mul_u64;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     /// Deterministic xorshift64* stream (fixed seed): no RNG dependency.
     fn pseudo_random_stream(seed: u64, n: usize) -> Vec<u64> {

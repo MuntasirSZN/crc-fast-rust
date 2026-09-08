@@ -160,6 +160,8 @@ pub(crate) fn clear_cache() {
 mod tests {
     use super::*;
     use hashbrown::HashSet;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_cache_key_creation() {
@@ -425,6 +427,7 @@ mod tests {
 
     // Thread safety tests
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_concurrent_cache_reads() {
         use spin::Barrier;
         use std::sync::Arc;
@@ -472,6 +475,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::needless_range_loop)] // Intentionally testing concurrent indexed access
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_concurrent_cache_writes() {
         use spin::Barrier;
         use std::sync::Arc;
@@ -538,6 +542,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_read_write_contention() {
         use core::time::Duration;
         use spin::Barrier;
@@ -634,6 +639,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_cache_consistency_under_concurrent_access() {
         use spin::Barrier;
         use std::sync::Arc;
@@ -694,6 +700,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_mixed_concurrent_operations() {
         use core::time::Duration;
         use spin::Barrier;
@@ -777,6 +784,7 @@ mod tests {
 
     // Error handling tests
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_cache_lock_poisoning_recovery() {
         use core::panic;
         use std::sync::Arc;
@@ -960,6 +968,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_cache_concurrent_error_scenarios() {
         use core::time::Duration;
         use spin::Barrier;
@@ -1511,6 +1520,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_crc_params_concurrent_creation() {
         use spin::Barrier;
         use std::sync::Arc;
@@ -1582,6 +1592,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_lock_poisoning_recovery() {
         use spin::Barrier;
         use std::sync::Arc;
@@ -1652,6 +1663,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_cache_behavior_with_thread_local_access() {
         use std::thread;
 

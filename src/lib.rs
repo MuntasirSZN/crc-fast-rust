@@ -1499,7 +1499,10 @@ mod lib {
     use crate::test::consts::{TEST_ALL_CONFIGS, TEST_CHECK_STRING};
     use crate::test::enums::AnyCrcTestConfig;
     use rand::{rng, RngExt};
+    #[cfg(not(target_arch = "wasm32"))]
     use std::fs::{read, write};
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_checksum_check() {
@@ -1583,7 +1586,7 @@ mod lib {
         assert!(!target.is_empty());
 
         // Should follow the expected format with valid architecture prefixes
-        let valid_prefixes = ["aarch64-", "x86_64-", "x86-", "software-"];
+        let valid_prefixes = ["aarch64-", "x86_64-", "x86-", "wasm32-", "software-"];
         assert!(
             valid_prefixes
                 .iter()
@@ -1700,6 +1703,7 @@ mod lib {
     /// tests.
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_medium_lengths() {
         for config in TEST_ALL_CONFIGS {
             // Test each length from 256 to 1024, which should fold and include handling remainders
@@ -1713,6 +1717,7 @@ mod lib {
     /// tests.
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_large_lengths() {
         for config in TEST_ALL_CONFIGS {
             // Test 1 MiB just before, at, and just after the folding boundaries
@@ -1813,6 +1818,7 @@ mod lib {
     /// covered by other tests.
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_checksum_file() {
         // Create a test file with repeating zeros
         let test_file_path = "test/test_crc32_hash_file.bin";
@@ -1834,6 +1840,7 @@ mod lib {
     /// covered by other tests.
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_checksum_file_with_custom_params() {
         crate::cache::clear_cache();
 
@@ -1876,6 +1883,7 @@ mod lib {
         std::fs::remove_file(test_file_path).unwrap();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn check_file(params: CrcParams, file_path: &str, check: u64) {
         let result = checksum_file_with_params(params, file_path, None).unwrap();
         assert_eq!(result, check);
@@ -1885,6 +1893,7 @@ mod lib {
     /// covered by other tests.
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_writer() {
         // Create a test file with repeating zeros
         let test_file_path = "test/test_crc32_writer_file.bin";
@@ -2155,6 +2164,7 @@ mod lib {
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_checksum_file_missing_returns_err() {
         let missing = "/definitely/not/here/crc-fast-missing.txt";
         assert!(checksum_file(CrcAlgorithm::Crc32IsoHdlc, missing, None).is_err());
@@ -2164,6 +2174,7 @@ mod lib {
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_checksum_file_custom_chunk_size_matches() {
         let file_path = std::env::current_dir()
             .expect("missing working dir")

@@ -192,6 +192,8 @@ fn bit_reverse(mut forward: u64) -> u64 {
 mod tests {
     use super::*;
     use crate::{params_for_algorithm, CrcAlgorithm};
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn mismatched_refin_refout_combine_returns_zero() {

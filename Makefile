@@ -138,3 +138,33 @@ print-paths:
 	@echo "Library dir: $(DESTDIR)$(INSTALL_LIB_DIR)"
 	@echo "Binary dir: $(DESTDIR)$(INSTALL_BIN_DIR)"
 	@echo "Include dir: $(DESTDIR)$(INSTALL_INCLUDE_DIR)"
+
+# WebAssembly (mirrors the test-wasm job in .github/workflows/tests.yml)
+WASM_TARGET := wasm32-unknown-unknown
+WASI_TARGET := wasm32-wasip1
+WASM_PACK := wasm-pack
+
+# One-stop wasm workflow: check + build + host tests + Node.js tests
+.PHONY: wasm
+wasm: wasm-test
+
+# Install the wasm compilation targets
+.PHONY: wasm-targets
+wasm-targets:
+	rustup target add $(WASM_TARGET) $(WASI_TARGET)
+
+# Run the wasm test suites: host harness, Node.js, Node.js with simd128
+.PHONY: wasm-test
+wasm-test: wasm-test-node wasm-test-node-simd128
+
+# Browser-independent Node.js suite via wasm-bindgen-test
+.PHONY: wasm-test-node
+wasm-test-node:
+	@command -v $(WASM_PACK) >/dev/null 2>&1 || { echo "wasm-pack not found. Install with: cargo install wasm-pack --force"; exit 1; }
+	@$(WASM_PACK) test --node --all-features
+
+# Node.js suite with simd128 enabled (exercises src/arch/wasm32/simd128.rs)
+.PHONY: wasm-test-node-simd128
+wasm-test-node-simd128:
+	@command -v $(WASM_PACK) >/dev/null 2>&1 || { echo "wasm-pack not found. Install with: cargo install wasm-pack --force"; exit 1; }
+	@RUSTFLAGS="-C target-feature=+simd128" $(WASM_PACK) test --node --all-features

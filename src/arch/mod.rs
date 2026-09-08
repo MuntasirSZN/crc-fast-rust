@@ -241,6 +241,8 @@ mod tests {
     use crate::test::create_aligned_data;
     use crate::test::enums::AnyCrcTestConfig;
     use rand::{rng, RngExt};
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     fn assert_update_matches_reference(data: &[u8]) {
         for config in TEST_ALL_CONFIGS {
@@ -426,6 +428,7 @@ mod tests {
     /// tests.
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_medium_lengths() {
         // Test each CRC variant
         for config in TEST_ALL_CONFIGS {
@@ -440,6 +443,7 @@ mod tests {
     /// tests.
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_large_lengths() {
         // Test each CRC variant
         for config in TEST_ALL_CONFIGS {

@@ -544,6 +544,8 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
     use core::str::FromStr;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_benchmark_config_validation_valid() {
@@ -648,6 +650,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_benchmark_runner_execution_in_memory() {
         let algorithm = CrcAlgorithm::from_str("CRC-32/ISCSI").unwrap();
         let data = BenchmarkData::InMemory(vec![1, 2, 3, 4]);
