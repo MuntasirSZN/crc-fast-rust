@@ -129,6 +129,10 @@ pub(crate) unsafe fn update(state: u64, bytes: &[u8], params: &CrcParams) -> u64
         ArchOpsInstance::X86_64Avx2Vpclmulqdq(ops) => {
             update_x86_64_avx2_vpclmulqdq(state, bytes, params, *ops)
         }
+        #[cfg(target_arch = "x86")]
+        ArchOpsInstance::X86Avx2Vpclmulqdq(ops) => {
+            update_x86_avx2_vpclmulqdq(state, bytes, params, *ops)
+        }
         ArchOpsInstance::X86SsePclmulqdq(ops) => {
             update_x86_sse_pclmulqdq(state, bytes, params, *ops)
         }
@@ -144,6 +148,18 @@ unsafe fn update_x86_sse_pclmulqdq(
     bytes: &[u8],
     params: &CrcParams,
     ops: crate::arch::x86::sse::X86SsePclmulqdqOps,
+) -> u64 {
+    dispatch_width!(state, bytes, params, &ops)
+}
+
+#[inline]
+#[cfg(target_arch = "x86")]
+#[target_feature(enable = "avx2,vpclmulqdq")]
+unsafe fn update_x86_avx2_vpclmulqdq(
+    state: u64,
+    bytes: &[u8],
+    params: &CrcParams,
+    ops: crate::arch::x86_64::avx2_vpclmulqdq::X86_64Avx2VpclmulqdqOps,
 ) -> u64 {
     dispatch_width!(state, bytes, params, &ops)
 }

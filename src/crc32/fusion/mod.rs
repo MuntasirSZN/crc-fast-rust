@@ -31,3 +31,16 @@ pub(crate) fn crc32_iscsi(state: u32, data: &[u8]) -> u32 {
         x86::crc32_iscsi(state, data)
     }
 }
+
+/// SSE4.2-without-PCLMULQDQ fallback (old Atoms): sequential native CRC32C,
+/// correct without PCLMUL-based stream recombination.
+#[inline(always)]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+pub(crate) fn crc32_iscsi_sse42_only(state: u32, data: &[u8]) -> u32 {
+    unsafe { x86::crc32_iscsi_sse42_only(state, data) }
+}
+
+/// CRC-only (`__crc32*`, no AES/PMULL) small-buffer paths for AArch64 builds
+/// carrying `+crc` but no AES tier. Safe: the callees only require `crc`.
+#[cfg(target_arch = "aarch64")]
+pub(crate) use aarch64::{crc32_iscsi_small_fast, crc32_iso_hdlc_small_fast};

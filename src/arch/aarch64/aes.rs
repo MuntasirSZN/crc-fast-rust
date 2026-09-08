@@ -237,9 +237,12 @@ impl ArchOps for Aarch64AesOps {
     #[inline]
     #[target_feature(enable = "aes")]
     unsafe fn carryless_mul_11(&self, a: Self::Vector, b: Self::Vector) -> Self::Vector {
-        vreinterpretq_u8_p128(vmull_p64(
-            vgetq_lane_p64(vreinterpretq_p64_u8(a), 1),
-            vgetq_lane_p64(vreinterpretq_p64_u8(b), 1),
+        // PMULL2 via `vmull_high_p64`: one instruction, no lane extracts.
+        // (The 01/10 cross products have no high-lane intrinsic, so they
+        // keep the extract form above.)
+        vreinterpretq_u8_p128(vmull_high_p64(
+            vreinterpretq_p64_u8(a),
+            vreinterpretq_p64_u8(b),
         ))
     }
 

@@ -69,6 +69,7 @@ pub enum PerformanceTier {
     X86_64SsePclmulqdq,
 
     // x86 tiers
+    X86Avx2Vpclmulqdq,
     X86SsePclmulqdq,
 
     // wasm32 tiers
@@ -94,6 +95,12 @@ pub struct ArchCapabilities {
     pub has_avx2: bool,     // required to use vpclmulqdq on 256-bit registers
     pub has_avx512vl: bool, // implicitly enables avx512f, has XOR3 operations
     pub has_vpclmulqdq: bool,
+    // AVX10 versioned enumeration (raw CPUID leaf 0x24; cpufeatures 0.3 has
+    // no AVX10 probe and AVX10-only CPUs may not set the legacy AVX512VL
+    // bit). XCR0-gated at detection time, so OS-without-YMM/ZMM-save reads
+    // false. 256-bit feeds the AVX2+VPCLMULQDQ tier, 512-bit the AVX512 tiers.
+    pub has_avx10_256: bool,
+    pub has_avx10_512: bool,
 }
 
 /// Helper function to convert a performance tier to a human-readable target string
@@ -119,6 +126,7 @@ fn tier_to_target_string(tier: PerformanceTier) -> String {
         PerformanceTier::X86_64Avx512Pclmulqdq => "x86_64-avx512-pclmulqdq".to_string(),
         PerformanceTier::X86_64Avx2Vpclmulqdq => "x86_64-avx2-vpclmulqdq".to_string(),
         PerformanceTier::X86_64SsePclmulqdq => "x86_64-sse-pclmulqdq".to_string(),
+        PerformanceTier::X86Avx2Vpclmulqdq => "x86-avx2-vpclmulqdq".to_string(),
         PerformanceTier::X86SsePclmulqdq => "x86-sse-pclmulqdq".to_string(),
         PerformanceTier::WasmSimd128 => "wasm32-simd128-swizzle".to_string(),
         PerformanceTier::SoftwareTable => "software-fallback-tables".to_string(),
@@ -159,6 +167,8 @@ unsafe fn detect_arch_capabilities() -> ArchCapabilities {
             has_avx2: false,
             has_avx512vl: false,
             has_vpclmulqdq: false,
+            has_avx10_256: false,
+            has_avx10_512: false,
         }
     }
 }
@@ -188,6 +198,8 @@ unsafe fn detect_aarch64_features() -> ArchCapabilities {
         has_avx2: false,
         has_avx512vl: false,
         has_vpclmulqdq: false,
+        has_avx10_256: false,
+        has_avx10_512: false,
     }
 }
 
@@ -204,6 +216,9 @@ unsafe fn detect_x86_features() -> ArchCapabilities {
     let has_vpclmulqdq = has_pclmulqdq && cpuid_vpclmulqdq::get();
     let has_avx2 = cpuid_avx2::get();
     let has_avx512vl = has_pclmulqdq && cpuid_avx512vl::get();
+    // AVX10-only CPUs may report neither legacy bit; the raw probe is
+    // quiescent (false,false) wherever leaf 0x24 is absent.
+    let (_avx10, has_avx10_256, has_avx10_512) = detect_avx10();
 
     ArchCapabilities {
         has_aes: false,
@@ -215,7 +230,53 @@ unsafe fn detect_x86_features() -> ArchCapabilities {
         has_avx2,
         has_avx512vl,
         has_vpclmulqdq,
+        has_avx10_256,
+        has_avx10_512,
     }
+}
+
+/// Raw CPUID AVX10 probe (leaf 0x24 version enumeration).
+///
+/// `cpufeatures 0.3` knows `avx512vl` but not AVX10, and AVX10-only CPUs may
+/// not set the legacy AVX512VL bit. Leaf 7 subleaf 1 EDX[19] enumerates
+/// AVX10; leaf 0x24 EAX[7:0] is the version and EBX[17]/EBX[18] report
+/// 256/512-bit forms (Intel SDM, CPUID EAX=24H).
+///
+/// Returns `(enumerated, has_256bit, has_512bit)`.
+///
+/// # Safety
+/// Raw CPUID/XGETBV. XCR0 is checked before any length bit can read true,
+/// and XGETBV itself is guarded by XSAVE+OSXSAVE, so an OS without YMM/ZMM
+/// state save can never observe true. Quiescent triple-false when the
+/// leaves are absent (all pre-AVX10 hardware).
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+unsafe fn detect_avx10() -> (bool, bool, bool) {
+    const ABSENT: (bool, bool, bool) = (false, false, false);
+    #[cfg(target_arch = "x86")]
+    use core::arch::x86::{__cpuid, __cpuid_count, _xgetbv};
+    #[cfg(target_arch = "x86_64")]
+    use core::arch::x86_64::{__cpuid, __cpuid_count, _xgetbv};
+
+    if __cpuid_count(0, 0).eax < 0x24 {
+        return ABSENT;
+    }
+    if (__cpuid_count(7, 1).edx & (1u32 << 19)) == 0 {
+        return ABSENT;
+    }
+    let ver = __cpuid_count(0x24, 0);
+    if (ver.eax & 0xff) == 0 {
+        return ABSENT; // version 0: AVX10 not actually enabled
+    }
+    // XGETBV faults without XSAVE+OSXSAVE (leaf 1 ECX[26,27]); bail first.
+    let leaf1 = __cpuid(1);
+    if (leaf1.ecx & ((1u32 << 26) | (1u32 << 27))) != ((1u32 << 26) | (1u32 << 27)) {
+        return ABSENT;
+    }
+    let xcr0 = _xgetbv(0);
+    let has_256 = (ver.ebx & (1u32 << 17)) != 0 && (xcr0 & 0x6u64) == 0x6u64;
+    let has_512 =
+        (ver.ebx & (1u32 << 18)) != 0 && (xcr0 & 0x6u64) == 0x6u64 && (xcr0 & 0xe0u64) == 0xe0u64;
+    (true, has_256, has_512)
 }
 
 /// Select the appropriate performance tier based on detected capabilities
@@ -235,13 +296,14 @@ pub(crate) fn select_performance_tier(capabilities: &ArchCapabilities) -> Perfor
 
     #[cfg(target_arch = "x86_64")]
     {
-        if capabilities.has_vpclmulqdq && capabilities.has_avx512vl {
+        if capabilities.has_vpclmulqdq && (capabilities.has_avx512vl || capabilities.has_avx10_512)
+        {
             return PerformanceTier::X86_64Avx512Vpclmulqdq;
         }
-        if capabilities.has_avx512vl {
+        if capabilities.has_avx512vl || capabilities.has_avx10_512 {
             return PerformanceTier::X86_64Avx512Pclmulqdq;
         }
-        if capabilities.has_vpclmulqdq && capabilities.has_avx2 {
+        if capabilities.has_vpclmulqdq && (capabilities.has_avx2 || capabilities.has_avx10_256) {
             return PerformanceTier::X86_64Avx2Vpclmulqdq;
         }
         if capabilities.has_pclmulqdq {
@@ -251,6 +313,9 @@ pub(crate) fn select_performance_tier(capabilities: &ArchCapabilities) -> Perfor
 
     #[cfg(target_arch = "x86")]
     {
+        if capabilities.has_vpclmulqdq && (capabilities.has_avx2 || capabilities.has_avx10_256) {
+            return PerformanceTier::X86Avx2Vpclmulqdq;
+        }
         if capabilities.has_pclmulqdq {
             return PerformanceTier::X86SsePclmulqdq;
         }
@@ -284,6 +349,8 @@ pub enum ArchOpsInstance {
     Aarch64AesSha3(crate::arch::aarch64::aes_sha3::Aarch64AesSha3Ops),
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     X86SsePclmulqdq(crate::arch::x86::sse::X86SsePclmulqdqOps),
+    #[cfg(target_arch = "x86")]
+    X86Avx2Vpclmulqdq(crate::arch::x86_64::avx2_vpclmulqdq::X86_64Avx2VpclmulqdqOps),
     #[cfg(target_arch = "x86_64")]
     X86_64Avx512Pclmulqdq(crate::arch::x86_64::avx512::X86_64Avx512PclmulqdqOps),
     #[cfg(target_arch = "x86_64")]
@@ -313,6 +380,8 @@ impl ArchOpsInstance {
             ArchOpsInstance::Aarch64AesSha3(_) => PerformanceTier::AArch64AesSha3,
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             ArchOpsInstance::X86SsePclmulqdq(_) => PerformanceTier::X86SsePclmulqdq,
+            #[cfg(target_arch = "x86")]
+            ArchOpsInstance::X86Avx2Vpclmulqdq(_) => PerformanceTier::X86Avx2Vpclmulqdq,
             #[cfg(target_arch = "x86_64")]
             ArchOpsInstance::X86_64Avx512Pclmulqdq(_) => PerformanceTier::X86_64Avx512Pclmulqdq,
             #[cfg(target_arch = "x86_64")]
@@ -393,6 +462,11 @@ fn create_arch_ops_from_tier(tier: PerformanceTier) -> ArchOpsInstance {
             use crate::arch::aarch64::aes::Aarch64AesOps;
             ArchOpsInstance::Aarch64Aes(Aarch64AesOps)
         }
+        #[cfg(target_arch = "x86")]
+        PerformanceTier::X86Avx2Vpclmulqdq => {
+            use crate::arch::x86_64::avx2_vpclmulqdq::X86_64Avx2VpclmulqdqOps;
+            ArchOpsInstance::X86Avx2Vpclmulqdq(X86_64Avx2VpclmulqdqOps::new())
+        }
         #[cfg(target_arch = "x86_64")]
         PerformanceTier::X86_64Avx512Vpclmulqdq => {
             use crate::arch::x86_64::avx512_vpclmulqdq::X86_64Avx512VpclmulqdqOps;
@@ -449,6 +523,8 @@ const CAPS_NONE: ArchCapabilities = ArchCapabilities {
     has_avx2: false,
     has_avx512vl: false,
     has_vpclmulqdq: false,
+    has_avx10_256: false,
+    has_avx10_512: false,
 };
 
 /// Test-specific tier selection that works across all architectures for comprehensive testing
@@ -463,18 +539,18 @@ pub fn select_performance_tier_for_test(capabilities: &ArchCapabilities) -> Perf
         return PerformanceTier::AArch64Aes;
     }
 
-    // x86_64 tier selection - VPCLMULQDQ + AVX512VL (512-bit)
-    if capabilities.has_vpclmulqdq && capabilities.has_avx512vl {
+    // x86_64 tier selection - VPCLMULQDQ + AVX512VL (512-bit, or AVX10-512)
+    if capabilities.has_vpclmulqdq && (capabilities.has_avx512vl || capabilities.has_avx10_512) {
         return PerformanceTier::X86_64Avx512Vpclmulqdq;
     }
 
-    // AVX512VL requires PCLMULQDQ and SSE4.1
-    if capabilities.has_avx512vl && capabilities.has_pclmulqdq {
+    // AVX512VL requires PCLMULQDQ and SSE4.1 (or AVX10-512)
+    if (capabilities.has_avx512vl || capabilities.has_avx10_512) && capabilities.has_pclmulqdq {
         return PerformanceTier::X86_64Avx512Pclmulqdq;
     }
 
-    // VPCLMULQDQ + AVX2 (256-bit, Zen3 etc. without AVX-512)
-    if capabilities.has_vpclmulqdq && capabilities.has_avx2 {
+    // VPCLMULQDQ + AVX2 (256-bit, Zen3 etc. without AVX-512, or AVX10-256)
+    if capabilities.has_vpclmulqdq && (capabilities.has_avx2 || capabilities.has_avx10_256) {
         return PerformanceTier::X86_64Avx2Vpclmulqdq;
     }
 
@@ -602,6 +678,55 @@ mod tests {
             select_performance_tier_for_test(&capabilities_no_pclmul),
             PerformanceTier::SoftwareTable
         );
+    }
+
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_avx10_tier_selection() {
+        // AVX10-512 satisfies the 512-bit tiers without the legacy AVX512VL bit.
+        let caps_512_vpclmul = ArchCapabilities {
+            has_pclmulqdq: true,
+            has_vpclmulqdq: true,
+            has_avx10_512: true,
+            ..CAPS_NONE
+        };
+        assert_eq!(
+            select_performance_tier_for_test(&caps_512_vpclmul),
+            PerformanceTier::X86_64Avx512Vpclmulqdq
+        );
+
+        let caps_512 = ArchCapabilities {
+            has_pclmulqdq: true,
+            has_avx10_512: true,
+            ..CAPS_NONE
+        };
+        assert_eq!(
+            select_performance_tier_for_test(&caps_512),
+            PerformanceTier::X86_64Avx512Pclmulqdq
+        );
+
+        // AVX10-256 satisfies the 256-bit tier without AVX2.
+        let caps_256 = ArchCapabilities {
+            has_pclmulqdq: true,
+            has_vpclmulqdq: true,
+            has_avx10_256: true,
+            ..CAPS_NONE
+        };
+        assert_eq!(
+            select_performance_tier_for_test(&caps_256),
+            PerformanceTier::X86_64Avx2Vpclmulqdq
+        );
+    }
+
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_detect_avx10_is_quiescent() {
+        // Raw CPUID/XGETBV probe: safe to call anywhere; on pre-AVX10
+        // hardware it must report absent with both length bits clear.
+        let (enumerated, has_256, has_512) = unsafe { detect_avx10() };
+        if !enumerated {
+            assert!(!has_256 && !has_512);
+        }
     }
 
     #[test]

@@ -9,19 +9,31 @@
 //! Forest. On those CPUs it carries the same instruction throughput as 128-bit PCLMULQDQ while
 //! operating on twice the data per instruction.
 
-#![cfg(target_arch = "x86_64")]
+#![cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 
 use crate::arch::x86::sse::X86SsePclmulqdqOps;
 use crate::enums::Reflector;
 use crate::structs::CrcState;
 use crate::traits::{ArchOps, EnhancedCrcWidth};
+#[cfg(target_arch = "x86")]
+use core::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 use core::ops::BitXor;
 
 /// Implements the ArchOps trait using 256-bit AVX2 and VPCLMULQDQ instructions.
 /// Delegates to X86SsePclmulqdqOps for standard 128-bit operations
+///
+/// YMM registers are fully usable in 32-bit mode (XSAVE covers YMM state);
+/// the same `_mm256_clmulepi64_epi128` folding code runs unchanged on `x86`.
+/// OS AVX support is enforced by the `cpufeatures` `avx2` gate before this
+/// tier is ever selected.
 #[derive(Debug, Copy, Clone)]
 pub struct X86_64Avx2VpclmulqdqOps(X86SsePclmulqdqOps);
+
+/// 32-bit alias so `x86` call sites read naturally; same type, same code.
+#[cfg(target_arch = "x86")]
+pub type X86Avx2VpclmulqdqOps = X86_64Avx2VpclmulqdqOps;
 
 impl Default for X86_64Avx2VpclmulqdqOps {
     fn default() -> Self {

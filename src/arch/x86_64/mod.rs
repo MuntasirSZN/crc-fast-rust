@@ -2,7 +2,7 @@
 
 //! This module provides x86_64-specific implementations of the ArchOps trait.
 
-#![cfg(target_arch = "x86_64")]
+#![cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 
 pub mod avx2_vpclmulqdq;
 pub mod avx512;

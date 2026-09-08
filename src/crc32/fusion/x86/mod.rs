@@ -217,6 +217,18 @@ pub unsafe fn crc32_iscsi_small_fast(mut crc: u32, data: &[u8]) -> u32 {
     crc
 }
 
+/// CRC-32/ISCSI for CPUs with SSE4.2 but WITHOUT PCLMULQDQ (old Atoms).
+///
+/// Sequential `_mm_crc32_u64` over the whole buffer, any length. A parallel
+/// multi-stream layout would need PCLMUL-based x^n shifting to recombine the
+/// streams, so sequential is the correct PCLMUL-free form — still an order of
+/// magnitude faster than scalar tables.
+#[inline]
+#[target_feature(enable = "sse4.2")]
+pub unsafe fn crc32_iscsi_sse42_only(crc: u32, data: &[u8]) -> u32 {
+    crc32_iscsi_small_fast(crc, data)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +281,33 @@ mod tests {
                     crc32_iscsi_small_fast(0xffffffff, &data) ^ 0xffffffff,
                     checksum
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn test_crc32_iscsi_sse42_only_matches_reference() {
+        // PCLMUL-free path must agree with the hardware-accelerated result
+        // and the catalogue check value, at small AND large (>=256B) sizes.
+        if is_x86_feature_detected!("sse4.2") {
+            unsafe {
+                assert_eq!(
+                    crc32_iscsi_sse42_only(0xffffffff, TEST_CHECK_STRING) ^ 0xffffffff,
+                    0xe3069283
+                );
+                let mut big = vec![0u8; 4096];
+                rng().fill(&mut big[..]);
+                let expected = RUST_CRC32_ISCSI.checksum(&big);
+                assert_eq!(
+                    crc32_iscsi_sse42_only(0xffffffff, &big) ^ 0xffffffff,
+                    expected
+                );
+                if is_x86_feature_detected!("pclmulqdq") {
+                    assert_eq!(
+                        crc32_iscsi_sse42_only(0xffffffff, &big),
+                        crc32_iscsi(0xffffffff, &big)
+                    );
+                }
             }
         }
     }
