@@ -2,12 +2,22 @@
 
 #![allow(dead_code)]
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 use crate::enums::Reflector;
 
 use crate::CrcParams;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 use crate::structs::CrcState;
 
 use core::ops::BitXor;
@@ -32,7 +42,12 @@ pub(crate) trait CrcCalculator {
     fn calculate(state: u64, data: &[u8], params: &CrcParams) -> u64;
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 /// Trait defining architecture-specific SIMD operations for CRC calculation
 pub trait ArchOps: Sized + Copy + Clone {
     /// The SIMD vector type used by this architecture
@@ -232,7 +247,12 @@ pub trait ArchOps: Sized + Copy + Clone {
     ) -> Self::Vector;
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 /// Enhanced CrcWidth trait with additional operations for generic CRC implementation
 pub trait EnhancedCrcWidth: CrcWidth {
     /// Load constants specific to CRC width

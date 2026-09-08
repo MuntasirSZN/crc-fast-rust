@@ -15,7 +15,12 @@ use crate::arch::aarch64::aes::Aarch64AesOps;
 #[cfg(target_arch = "aarch64")]
 use crate::arch::aarch64::aes_sha3::Aarch64AesSha3Ops;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 use crate::{
     algorithm,
     structs::{Width16, Width31, Width32, Width5, Width64, Width8},
@@ -23,13 +28,15 @@ use crate::{
 
 pub mod aarch64;
 pub mod software;
+#[cfg(target_arch = "wasm32")]
+pub mod wasm32;
 pub mod x86;
 pub mod x86_64;
 
 /// Dispatch `state/bytes/params` to the width-generic `algorithm::update`.
 /// Single source for the 7-arm `params.width` match repeated by every
 /// arch-specific `update_*` wrapper.
-/// Unused on targets outside x86/x86_64/aarch64, where every use site is
+/// Unused on targets outside the gated arch set, where every use site is
 /// cfg'd out (the software fallback needs no dispatch).
 #[allow(unused_macros)]
 macro_rules! dispatch_width {
@@ -177,11 +184,46 @@ unsafe fn update_x86_64_avx512_vpclmulqdq(
     dispatch_width!(state, bytes, params, &ops)
 }
 
+/// Main entry point for wasm32.
+///
+/// Branches on compile-time `simd128` enablement: the manual-SIMD backend
+/// when available, the scalar tables otherwise.
+///
+/// # Safety
+/// May use native CPU features
+#[inline(always)]
+#[cfg(target_arch = "wasm32")]
+pub(crate) unsafe fn update(state: u64, bytes: &[u8], params: &CrcParams) -> u64 {
+    if cfg!(target_feature = "simd128") {
+        update_wasm32_simd128(
+            state,
+            bytes,
+            params,
+            crate::arch::wasm32::simd128::WasmSimd128Ops,
+        )
+    } else {
+        crate::arch::software::update(state, bytes, params)
+    }
+}
+
+#[inline]
+#[cfg(target_arch = "wasm32")]
+#[target_feature(enable = "simd128")]
+unsafe fn update_wasm32_simd128(
+    state: u64,
+    bytes: &[u8],
+    params: &CrcParams,
+    ops: crate::arch::wasm32::simd128::WasmSimd128Ops,
+) -> u64 {
+    dispatch_width!(state, bytes, params, &ops)
+}
+
 #[inline(always)]
 #[cfg(all(
     not(target_arch = "x86"),
     not(target_arch = "x86_64"),
-    not(target_arch = "aarch64")
+    not(target_arch = "aarch64"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) unsafe fn update(state: u64, bytes: &[u8], params: &CrcParams) -> u64 {
     crate::arch::software::update(state, bytes, params)

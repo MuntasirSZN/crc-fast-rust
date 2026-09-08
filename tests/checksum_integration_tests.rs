@@ -1,6 +1,9 @@
 // Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
 
 #![cfg(feature = "cli")]
+// Spawns the `checksum` binary via OS processes: host-only, unrunnable under
+// `wasm-pack test --node` (no processes on `wasm32-unknown-unknown`).
+#![cfg(not(target_arch = "wasm32"))]
 
 use std::fs;
 use std::path::PathBuf;

@@ -68,12 +68,28 @@ exn = { version = "0.4.0-rc.1", default-features = false, optional = true }
 
 [dev-dependencies]
 crc = "3.4"
-criterion = "0.8"
-proptest = "1.11"
 rand = "0.10"
 
 [target.'cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))'.dependencies]
 cpufeatures = "0.3"
+
+# Full proptest (with fork/timeout) and criterion (with rayon) on host;
+# `rusty-fork`/`wait-timeout` and rayon cannot compile for wasm, so wasm
+# builds get the no-fork proptest subset and featureless criterion (benches
+# never execute under wasm-pack; the dep only needs to build).
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = "0.8"
+proptest = "1.11"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"
+criterion = { version = "0.8", default-features = false }
+# `wasm_js` on both getrandom majors in the dev graph (`rand 0.10` -> 0.4,
+# `proptest` -> `rand 0.9` -> 0.3). The 0.3 line additionally needs
+# `--cfg getrandom_backend="wasm_js"` (see .cargo/config.toml).
+getrandom = { version = "0.4", features = ["wasm_js"] }
+getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+proptest = { version = "1.11", default-features = false, features = ["std", "bit-set"] }
 
 [features]
 # default features

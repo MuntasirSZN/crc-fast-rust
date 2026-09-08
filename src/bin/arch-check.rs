@@ -32,6 +32,9 @@ fn main() {
     #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
     x86_features();
 
+    #[cfg(target_arch = "wasm32")]
+    wasm32_features();
+
     print_targets();
 
     print_cpu_info();
@@ -109,6 +112,21 @@ fn x86_features() {
         println!("  {checkmark} AVX512VL\n",);
     } else {
         println!("  x AVX512VL\n");
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn wasm32_features() {
+    let checkmark: char = '✓';
+
+    println!("[WASM32] Checking for features...");
+
+    // `simd128` is compile-time: `cfg!` mirrors the dispatch branch in
+    // `crate::arch::update`.
+    if cfg!(target_feature = "simd128") {
+        println!("  {checkmark} SIMD128\n",);
+    } else {
+        println!("  x SIMD128\n");
     }
 }
 

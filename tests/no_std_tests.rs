@@ -4,6 +4,13 @@
 //! but this exercises all no_std code paths.
 //!
 //! Run tests: cargo test --test no_std_tests
+//! Run under Node.js: wasm-pack test --node --all-features
+
+// On wasm32 the `test` attribute resolves to `wasm_bindgen_test`, so the
+// same suite runs under `wasm-pack test --node`; on other targets it stays
+// the built-in test harness.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
 
 use crc_fast::{checksum, CrcAlgorithm, Digest};
 

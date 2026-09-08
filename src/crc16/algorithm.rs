@@ -5,7 +5,12 @@
 //! CRC-16 computation is performed by scaling 16-bit values to 32-bit space,
 //! using the shared width32_ops module, and then scaling the result back to 16 bits.
 
-#![cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#![cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 
 use crate::enums::Reflector;
 use crate::structs::CrcState;

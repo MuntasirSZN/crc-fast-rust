@@ -6,7 +6,12 @@
 //! using the shared width32_ops module, and then scaling the result back to 31 bits.
 //! Since PHILIPS is forward (non-reflected), values are shifted left by 1 (32-31).
 
-#![cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#![cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 
 use crate::enums::Reflector;
 use crate::structs::CrcState;

@@ -1,6 +1,11 @@
 // Copyright 2025 Don MacAskill. Licensed under MIT or Apache-2.0 and Zlib.
 
-#![cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#![cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 
 // SIMD intrinsics for debug printing (std only)
 #[cfg(all(feature = "std", target_arch = "aarch64"))]

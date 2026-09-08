@@ -2,7 +2,12 @@
 
 //! This module provides the CRC-64 implementation for areas where it differs from CRC-32.
 
-#![cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#![cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 
 use crate::algorithm;
 use crate::consts::{CRC_CHUNK_SIZE, CRC_HALF_CHUNK_SIZE};

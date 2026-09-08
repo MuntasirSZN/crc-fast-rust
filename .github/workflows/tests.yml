@@ -49,7 +49,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install cbindgen
-        uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2.87.2
+        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2.87.7
         with:
           tool: cbindgen
       - name: Check header is up-to-date
@@ -322,10 +322,17 @@ jobs:
         run: cargo test --test wasm_tests
       - if: ${{ matrix.target == 'wasm32-unknown-unknown' && matrix.rust-toolchain == 'stable' }}
         name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2.87.7
+        with:
+          tool: wasm-pack
       - if: ${{ matrix.target == 'wasm32-unknown-unknown' && matrix.rust-toolchain == 'stable' }}
-        name: Build WASM package with wasm-pack
-        run: wasm-pack build --target web --no-default-features --features alloc,panic-handler
+        name: Run WASM tests under Node.js
+        run: wasm-pack test --node --all-features
+      - if: ${{ matrix.target == 'wasm32-unknown-unknown' && matrix.rust-toolchain == 'stable' }}
+        name: Run WASM tests under Node.js (simd128)
+        run: wasm-pack test --node --all-features
+        env:
+          RUSTFLAGS: "-C target-feature=+simd128"
 
   fuzz-test:
     name: Fuzz Testing

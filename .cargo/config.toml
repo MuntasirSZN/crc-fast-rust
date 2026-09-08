@@ -1,0 +1,7 @@
+# `getrandom` on `wasm32-unknown-unknown` requires both the `wasm_js`
+# Cargo feature (see the wasm32 dev-dependencies in Cargo.toml) and this
+# compile-time backend selection. Scoped to that target only; all other
+# targets (including `wasm32-wasip1`, which uses the WASI backend) are
+# unaffected.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']

@@ -9,7 +9,12 @@
 //! which share nearly identical SIMD operations for folding, Barrett reduction, and
 //! small input processing.
 
-#![cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#![cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32",
+))]
 
 use crate::algorithm;
 use crate::consts::CRC_CHUNK_SIZE;

@@ -7,6 +7,31 @@ use crate::CrcAlgorithm;
 use crate::CrcParams;
 
 // ============================================================================
+// Scalar carryless-multiply core
+// ============================================================================
+
+/// Scalar 64x64 -> 128-bit carryless multiply (XOR-convolution, no carries).
+///
+/// Shared core for SIMD backends whose instruction set has no carryless
+/// multiply instruction (e.g. `wasm32` `simd128`): every
+/// `ArchOps::carryless_mul_*` lane combination reduces to this function plus
+/// lane unpack/pack. Pure integer arithmetic: `no_std` safe, no target
+/// features required.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+pub(crate) fn carryless_mul_u64(a: u64, mut b: u64) -> u128 {
+    let mut multiplicand = a as u128;
+    let mut result: u128 = 0;
+    while b != 0 {
+        if b & 1 != 0 {
+            result ^= multiplicand;
+        }
+        multiplicand <<= 1;
+        b >>= 1;
+    }
+    result
+}
+
+// ============================================================================
 // Native Table Generation Functions
 // ============================================================================
 
@@ -1382,6 +1407,96 @@ mod property_tests {
                 "{} software fallback check value mismatch",
                 name
             );
+        }
+    }
+}
+
+// ============================================================================
+// Unit Tests for Scalar Carryless-Multiply Core
+// ============================================================================
+
+/// Tests for [`super::carryless_mul_u64`], the scalar core behind every
+/// `wasm32` `ArchOps::carryless_mul_*` lane combination. Host-runnable: the
+/// helper is pure integer arithmetic with no target features.
+#[cfg(test)]
+mod carryless_tests {
+    use super::carryless_mul_u64;
+
+    /// Deterministic xorshift64* stream (fixed seed): no RNG dependency.
+    fn pseudo_random_stream(seed: u64, n: usize) -> Vec<u64> {
+        let mut x = seed;
+        (0..n)
+            .map(|_| {
+                x ^= x >> 12;
+                x ^= x << 25;
+                x ^= x >> 27;
+                x = x.wrapping_mul(0x2545F4914F6CDD1D);
+                x
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_carryless_zero_annihilates() {
+        assert_eq!(carryless_mul_u64(0, 0xDEADBEEFCAFEBABE), 0);
+        assert_eq!(carryless_mul_u64(0xDEADBEEFCAFEBABE, 0), 0);
+    }
+
+    #[test]
+    fn test_carryless_one_is_identity() {
+        for v in [
+            0,
+            1,
+            0x8000000000000000,
+            0xFFFFFFFFFFFFFFFF,
+            0x123456789ABCDEF0,
+        ] {
+            assert_eq!(carryless_mul_u64(1, v), v as u128, "1 * {v:#x}");
+            assert_eq!(carryless_mul_u64(v, 1), v as u128, "{v:#x} * 1");
+        }
+    }
+
+    #[test]
+    fn test_carryless_msb_by_msb() {
+        assert_eq!(
+            carryless_mul_u64(0x8000000000000000, 0x8000000000000000),
+            1u128 << 126
+        );
+    }
+
+    #[test]
+    fn test_carryless_all_ones_parity() {
+        // Bit k of all-ones x all-ones is the parity of its term count:
+        // set exactly at even k -> 0x5555...5555 across all 128 bits.
+        let mut expected: u128 = 0;
+        for k in (0..128).step_by(2) {
+            expected |= 1 << k;
+        }
+        assert_eq!(
+            carryless_mul_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_carryless_commutative_and_distributive() {
+        let xs = pseudo_random_stream(0x9E3779B97F4A7C15, 128);
+        for w in xs.windows(3) {
+            let (a, b, c) = (w[0], w[1], w[2]);
+            assert_eq!(carryless_mul_u64(a, b), carryless_mul_u64(b, a));
+            assert_eq!(
+                carryless_mul_u64(a ^ b, c),
+                carryless_mul_u64(a, c) ^ carryless_mul_u64(b, c)
+            );
+            // Top product bit (126 = 63 + 63) set iff both MSB inputs set.
+            let top = (carryless_mul_u64(a, b) >> 126) as u64;
+            assert_eq!(top, (a >> 63) & (b >> 63));
+            // Degree bound: deg(product) = deg(a) + deg(b).
+            if a != 0 && b != 0 {
+                let bitlen = (64 - a.leading_zeros()) + (64 - b.leading_zeros()) - 1;
+                let product = carryless_mul_u64(a, b);
+                assert_eq!(product >> (bitlen - 1), 1, "deg({a:#x}) + deg({b:#x})");
+            }
         }
     }
 }

@@ -234,7 +234,12 @@ use digest::DynDigest;
 use digest::InvalidBufferSize;
 
 #[cfg(all(
-    any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64"),
+    any(
+        target_arch = "x86_64",
+        target_arch = "x86",
+        target_arch = "aarch64",
+        target_arch = "wasm32",
+    ),
     any(feature = "std", feature = "alloc")
 ))]
 use crate::feature_detection::get_arch_ops;
@@ -1229,7 +1234,12 @@ pub fn checksum_combine_with_params(
 /// ```
 #[cfg(all(
     feature = "alloc",
-    any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
+    any(
+        target_arch = "aarch64",
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "wasm32",
+    )
 ))]
 pub fn get_calculator_target(_algorithm: CrcAlgorithm) -> String {
     let arch_ops = get_arch_ops();
@@ -1299,7 +1309,12 @@ pub fn crc64_nvme(data: &[u8]) -> u64 {
 /// Fallback version of get_calculator_target for unsupported architectures
 #[cfg(all(
     feature = "alloc",
-    not(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))
+    not(any(
+        target_arch = "aarch64",
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "wasm32",
+    ))
 ))]
 pub fn get_calculator_target(_algorithm: CrcAlgorithm) -> String {
     extern crate alloc;

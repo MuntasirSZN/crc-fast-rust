@@ -3,7 +3,12 @@
 //! Feature detection system for safe and efficient hardware acceleration across different
 //! platforms.
 
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 use spin::Once;
 
 #[cfg(feature = "alloc")]
@@ -12,7 +17,12 @@ extern crate alloc;
     test,
     all(
         feature = "alloc",
-        any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
+        any(
+            target_arch = "aarch64",
+            target_arch = "x86",
+            target_arch = "x86_64",
+            target_arch = "wasm32",
+        )
     )
 ))]
 use alloc::string::{String, ToString};
@@ -36,7 +46,12 @@ cpufeatures::new!(cpuid_avx512vl, "avx512vl");
 cpufeatures::new!(cpuid_vpclmulqdq, "vpclmulqdq");
 
 /// Global ArchOps instance cache - initialized once based on feature detection results (spin::Once for no_std friendliness)
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 static ARCH_OPS_INSTANCE: Once<ArchOpsInstance> = Once::new();
 
 /// Performance tiers representing different hardware capability levels
@@ -55,6 +70,9 @@ pub enum PerformanceTier {
 
     // x86 tiers
     X86SsePclmulqdq,
+
+    // wasm32 tiers
+    WasmSimd128,
 
     // Fallback
     SoftwareTable,
@@ -84,7 +102,12 @@ pub struct ArchCapabilities {
     test,
     all(
         feature = "alloc",
-        any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
+        any(
+            target_arch = "aarch64",
+            target_arch = "x86",
+            target_arch = "x86_64",
+            target_arch = "wasm32",
+        )
     )
 ))]
 #[inline(always)]
@@ -97,6 +120,7 @@ fn tier_to_target_string(tier: PerformanceTier) -> String {
         PerformanceTier::X86_64Avx2Vpclmulqdq => "x86_64-avx2-vpclmulqdq".to_string(),
         PerformanceTier::X86_64SsePclmulqdq => "x86_64-sse-pclmulqdq".to_string(),
         PerformanceTier::X86SsePclmulqdq => "x86-sse-pclmulqdq".to_string(),
+        PerformanceTier::WasmSimd128 => "wasm32-simd128-swizzle".to_string(),
         PerformanceTier::SoftwareTable => "software-fallback-tables".to_string(),
     }
 }
@@ -105,7 +129,12 @@ fn tier_to_target_string(tier: PerformanceTier) -> String {
 ///
 /// # Safety
 /// Uses runtime feature detection which may access CPU-specific registers
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 unsafe fn detect_arch_capabilities() -> ArchCapabilities {
     #[cfg(target_arch = "aarch64")]
     {
@@ -227,13 +256,26 @@ pub(crate) fn select_performance_tier(capabilities: &ArchCapabilities) -> Perfor
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    {
+        // `simd128` is compile-time: no `cpufeatures` entry needed.
+        if cfg!(target_feature = "simd128") {
+            return PerformanceTier::WasmSimd128;
+        }
+    }
+
     // Fallback to software implementation
     PerformanceTier::SoftwareTable
 }
 
 /// Enum that holds the different ArchOps implementations for compile-time dispatch
 /// This avoids the need for trait objects while still providing factory-based selection
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 #[derive(Debug, Clone, Copy)]
 pub enum ArchOpsInstance {
     #[cfg(target_arch = "aarch64")]
@@ -248,11 +290,18 @@ pub enum ArchOpsInstance {
     X86_64Avx512Vpclmulqdq(crate::arch::x86_64::avx512_vpclmulqdq::X86_64Avx512VpclmulqdqOps),
     #[cfg(target_arch = "x86_64")]
     X86_64Avx2Vpclmulqdq(crate::arch::x86_64::avx2_vpclmulqdq::X86_64Avx2VpclmulqdqOps),
+    #[cfg(target_arch = "wasm32")]
+    WasmSimd128(crate::arch::wasm32::simd128::WasmSimd128Ops),
     /// Software fallback - no ArchOps struct needed
     SoftwareFallback,
 }
 
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 impl ArchOpsInstance {
     #[inline(always)]
     #[allow(dead_code)]
@@ -270,6 +319,8 @@ impl ArchOpsInstance {
             ArchOpsInstance::X86_64Avx512Vpclmulqdq(_) => PerformanceTier::X86_64Avx512Vpclmulqdq,
             #[cfg(target_arch = "x86_64")]
             ArchOpsInstance::X86_64Avx2Vpclmulqdq(_) => PerformanceTier::X86_64Avx2Vpclmulqdq,
+            #[cfg(target_arch = "wasm32")]
+            ArchOpsInstance::WasmSimd128(_) => PerformanceTier::WasmSimd128,
             ArchOpsInstance::SoftwareFallback => PerformanceTier::SoftwareTable,
         }
     }
@@ -277,7 +328,12 @@ impl ArchOpsInstance {
     /// Get a human-readable target string describing the active configuration
     #[cfg(all(
         feature = "alloc",
-        any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")
+        any(
+            target_arch = "aarch64",
+            target_arch = "x86",
+            target_arch = "x86_64",
+            target_arch = "wasm32",
+        )
     ))]
     #[inline(always)]
     pub fn get_target_string(&self) -> String {
@@ -290,7 +346,12 @@ impl ArchOpsInstance {
 /// This function provides access to the cached ArchOps instance that was selected based on
 /// feature detection results at library initialization time, eliminating runtime feature
 /// detection overhead from hot paths.
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 pub fn get_arch_ops() -> &'static ArchOpsInstance {
     ARCH_OPS_INSTANCE.call_once(create_arch_ops)
 }
@@ -300,7 +361,12 @@ pub fn get_arch_ops() -> &'static ArchOpsInstance {
 /// This function uses the cached feature detection results to select the optimal
 /// architecture-specific implementation at library initialization time, eliminating
 /// runtime feature detection overhead from hot paths.
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 fn create_arch_ops() -> ArchOpsInstance {
     let capabilities = unsafe { detect_arch_capabilities() };
     let tier = select_performance_tier(&capabilities);
@@ -309,7 +375,12 @@ fn create_arch_ops() -> ArchOpsInstance {
 }
 
 /// Helper function to create ArchOpsInstance from a performance tier
-#[cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "wasm32",
+))]
 fn create_arch_ops_from_tier(tier: PerformanceTier) -> ArchOpsInstance {
     match tier {
         #[cfg(target_arch = "aarch64")]
@@ -340,6 +411,10 @@ fn create_arch_ops_from_tier(tier: PerformanceTier) -> ArchOpsInstance {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         PerformanceTier::X86_64SsePclmulqdq | PerformanceTier::X86SsePclmulqdq => {
             create_x86_sse_pclmulqdq_ops()
+        }
+        #[cfg(target_arch = "wasm32")]
+        PerformanceTier::WasmSimd128 => {
+            ArchOpsInstance::WasmSimd128(crate::arch::wasm32::simd128::WasmSimd128Ops)
         }
         PerformanceTier::SoftwareTable => {
             // Use software fallback

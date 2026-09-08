@@ -1,4 +1,10 @@
 // Comprehensive catalogue check values for newly added variants.
+//
+// Run under Node.js: wasm-pack test --node --all-features
+// (on wasm32 `test` resolves to `wasm_bindgen_test`; elsewhere built-in).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use crc_fast::{checksum, checksum_combine, checksum_with_params, CrcAlgorithm, CrcParams, Digest};
 
 fn check_all() -> Vec<(CrcAlgorithm, u64)> {
