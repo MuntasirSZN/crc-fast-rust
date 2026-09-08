@@ -286,6 +286,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // executes SSE4.2 target-feature code
     fn test_crc32_iscsi_sse42_only_matches_reference() {
         // PCLMUL-free path must agree with the hardware-accelerated result
         // and the catalogue check value, at small AND large (>=256B) sizes.

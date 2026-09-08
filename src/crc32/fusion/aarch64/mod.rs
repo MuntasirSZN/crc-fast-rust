@@ -215,6 +215,10 @@ pub unsafe fn crc32_iso_hdlc_small_fast(mut crc: u32, data: &[u8]) -> u32 {
 }
 
 #[cfg(test)]
+// NOTE: every test in this module executes `crc`/`aes`/`sha3` target-feature
+// instructions, which Miri cannot interpret (UB abort). They are ignored
+// under Miri via per-test `cfg_attr` below and are covered by the
+// real-hardware aarch64 CI job instead.
 mod tests {
     use super::*;
     use crate::test::consts::TEST_CHECK_STRING;
@@ -227,6 +231,7 @@ mod tests {
     const RUST_CRC32_ISCSI: Crc<u32, Table<16>> = Crc::<u32, Table<16>>::new(&crc::CRC_32_ISCSI);
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iso_hdlc_check() {
         assert_eq!(
             crc32_iso_hdlc(0xffffffff, TEST_CHECK_STRING) ^ 0xffffffff,
@@ -235,6 +240,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iso_hdlc_small_all_lengths() {
         for len in 1..=255 {
             crc32_iso_hdlc_random(len)
@@ -242,6 +248,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iso_hdlc_medium_lengths() {
         // Test each length from 256 to 1024, which should fold and include handling remainders
         for len in 256..=1024 {
@@ -250,6 +257,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iso_hdlc_large_lengths() {
         // Test 1 MiB just before, at, and just after the folding boundaries
         for len in 1048575..1048577 {
@@ -258,6 +266,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iscsi_check() {
         assert_eq!(
             crc32_iscsi(0xffffffff, TEST_CHECK_STRING) ^ 0xffffffff,
@@ -266,6 +275,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iscsi_small_all_lengths() {
         for len in 1..=255 {
             crc32_iscsi_random(len);
@@ -273,6 +283,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iscsi_medium_lengths() {
         // Test each length from 256 to 1024, which should fold and include handling remainders
         for len in 256..=1024 {
@@ -281,6 +292,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_crc32_iscsi_large_lengths() {
         // Test 1 MiB just before, at, and just after the folding boundaries
         for len in 1048575..1048577 {

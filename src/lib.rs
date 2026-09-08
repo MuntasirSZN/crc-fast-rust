@@ -1419,7 +1419,8 @@ fn crc32_iscsi_calculator(state: u64, data: &[u8], _params: &CrcParams) -> u64 {
         // small buffers via the native small-fast path. `has_crc` is
         // compile-time here (cpufeatures exposes no aarch64 `crc` probe),
         // so this only fires for `+crc` builds; large buffers still need AES.
-        if data.len() < 128 && cfg!(target_feature = "crc") {
+        // Never under Miri, which cannot interpret target-feature code.
+        if data.len() < 128 && cfg!(target_feature = "crc") && !cfg!(miri) {
             return unsafe { fusion::crc32_iscsi_small_fast(state as u32, data) } as u64;
         }
 
@@ -1454,11 +1455,13 @@ fn crc32_iscsi_calculator(state: u64, data: &[u8], _params: &CrcParams) -> u64 {
         // SSE4.2 without PCLMULQDQ (tier fell through to software): native
         // CRC32C instructions alone still beat tables ~10x. The sequential
         // path needs no PCLMUL-based stream recombination, so it is the
-        // correct PCLMUL-free form for buffers of any length.
+        // correct PCLMUL-free form for buffers of any length. Never under
+        // Miri, which cannot interpret target-feature code.
         if matches!(
             get_arch_ops().get_tier(),
             crate::feature_detection::PerformanceTier::SoftwareTable
         ) && is_x86_feature_detected!("sse4.2")
+            && !cfg!(miri)
         {
             return fusion::crc32_iscsi_sse42_only(state as u32, data) as u64;
         }
@@ -1480,8 +1483,8 @@ fn crc32_iso_hdlc_calculator(state: u64, data: &[u8], _params: &CrcParams) -> u6
         use crate::feature_detection::{get_arch_ops, PerformanceTier};
 
         // Same CRC-only reasoning as ISCSI above: small buffers need only
-        // `__crc32*`, large ones still require the AES tier.
-        if data.len() < 128 && cfg!(target_feature = "crc") {
+        // `__crc32*`, large ones still require the AES tier. Never under Miri.
+        if data.len() < 128 && cfg!(target_feature = "crc") && !cfg!(miri) {
             return unsafe { fusion::crc32_iso_hdlc_small_fast(state as u32, data) } as u64;
         }
         let arch_ops = get_arch_ops();
