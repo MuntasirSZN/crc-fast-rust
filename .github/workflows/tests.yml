@@ -205,11 +205,14 @@ jobs:
       - name: Test
         run: cross test --all-features --target ${{ matrix.target }}
 
-  miri-test-x86_64:
-    name: Miri Test x86_64
-    needs: [check-previous-run, test-x86_64]
+  miri-test:
+    name: Miri Test (${{ matrix.os }})
+    needs: [check-previous-run, test-x86_64, test-aarch64]
     if: needs.check-previous-run.outputs.should_skip != 'true'
-    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        os: [ubuntu-26.04-arm, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
@@ -400,7 +403,7 @@ jobs:
         test-x86-linux,
         test-x86-windows,
         test-software,
-        miri-test-x86_64,
+        miri-test,
         test-no-std,
         test-wasm,
         fuzz-test,
@@ -425,7 +428,7 @@ jobs:
              [ "${{ needs.test-x86-linux.result }}" == "failure" ] || \
              [ "${{ needs.test-x86-windows.result }}" == "failure" ] || \
              [ "${{ needs.test-software.result }}" == "failure" ] || \
-             [ "${{ needs.miri-test-x86_64.result }}" == "failure" ] || \
+             [ "${{ needs.miri-test.result }}" == "failure" ] || \
              [ "${{ needs.test-no-std.result }}" == "failure" ] || \
              [ "${{ needs.test-wasm.result }}" == "failure" ] || \
              [ "${{ needs.fuzz-test.result }}" == "failure" ]; then

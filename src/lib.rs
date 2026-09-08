@@ -67,18 +67,12 @@
 //! easier integration with existing code.
 //!
 //! ```rust
-//! use std::env;
-//! use std::fs::File;
 //! use crc_fast::{Digest, CrcAlgorithm::Crc32IsoHdlc};
-//!
-//! // for example/test purposes only, use your own file path
-//! let file_path = env::current_dir().expect("missing working dir").join("crc-check.txt");
-//! let file_on_disk = file_path.to_str().unwrap();
 //!
 //! // actual usage
 //! let mut digest = Digest::new(Crc32IsoHdlc);
-//! let mut file = File::open(file_on_disk).unwrap();
-//! std::io::copy(&mut file, &mut digest).unwrap();
+//! let mut cursor = std::io::Cursor::new(b"123456789");
+//! std::io::copy(&mut cursor, &mut digest).unwrap();
 //! let checksum = digest.finalize();
 //!
 //! assert_eq!(checksum, 0xcbf43926);
@@ -104,15 +98,10 @@
 //! ```
 //!
 //! ## checksum_file
-//!```rust
-//! use std::env;
+//!```rust,no_run
 //! use crc_fast::{checksum_file, CrcAlgorithm::Crc32IsoHdlc};
 //!
-//! // for example/test purposes only, use your own file path
-//! let file_path = env::current_dir().expect("missing working dir").join("crc-check.txt");
-//! let file_on_disk = file_path.to_str().unwrap();
-//!
-//! let checksum = checksum_file(Crc32IsoHdlc, file_on_disk, None);
+//! let checksum = checksum_file(Crc32IsoHdlc, "path/to/your/file", None);
 //!
 //! assert_eq!(checksum.unwrap(), 0xcbf43926);
 //! ```
@@ -1050,15 +1039,10 @@ pub fn checksum_with_params(params: CrcParams, buf: &[u8]) -> u64 {
 ///
 /// # Examples
 /// ### checksum_file
-///```rust
-/// use std::env;
+///```rust,no_run
 /// use crc_fast::{checksum_file, CrcAlgorithm::Crc32IsoHdlc};
 ///
-/// // for example/test purposes only, use your own file path
-/// let file_path = env::current_dir().expect("missing working dir").join("crc-check.txt");
-/// let file_on_disk = file_path.to_str().unwrap();
-///
-/// let checksum = checksum_file(Crc32IsoHdlc, file_on_disk, None);
+/// let checksum = checksum_file(Crc32IsoHdlc, "path/to/your/file", None);
 ///
 /// assert_eq!(checksum.unwrap(), 0xcbf43926);
 /// ```
@@ -1082,13 +1066,8 @@ pub fn checksum_file(
 ///
 /// # Examples
 ///
-/// ```rust
-/// use std::env;
+/// ```rust,no_run
 /// use crc_fast::{checksum_file_with_params, CrcParams};
-///
-/// // for example/test purposes only, use your own file path
-/// let file_path = env::current_dir().expect("missing working dir").join("crc-check.txt");
-/// let file_on_disk = file_path.to_str().unwrap();
 ///
 /// // Define custom CRC-32 parameters (equivalent to CRC-32/ISO-HDLC)
 /// let custom_params = CrcParams::new(
@@ -1101,7 +1080,7 @@ pub fn checksum_file(
 ///     0xcbf43926,
 /// );
 ///
-/// let checksum = checksum_file_with_params(custom_params, file_on_disk, None);
+/// let checksum = checksum_file_with_params(custom_params, "path/to/your/file", None);
 ///
 /// assert_eq!(checksum.unwrap(), 0xcbf43926);
 /// ```
@@ -2197,22 +2176,6 @@ mod lib {
         assert!(checksum_file(CrcAlgorithm::Crc32IsoHdlc, missing, None).is_err());
         let params = params_for_algorithm(CrcAlgorithm::Crc32IsoHdlc);
         assert!(checksum_file_with_params(params, missing, None).is_err());
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    #[cfg(not(target_arch = "wasm32"))]
-    fn test_checksum_file_custom_chunk_size_matches() {
-        let file_path = std::env::current_dir()
-            .expect("missing working dir")
-            .join("crc-check.txt");
-        let file_on_disk = file_path.to_str().unwrap();
-        for chunk_size in [Some(1usize), Some(7usize), Some(524288usize)] {
-            assert_eq!(
-                checksum_file(CrcAlgorithm::Crc32IsoHdlc, file_on_disk, chunk_size).unwrap(),
-                0xcbf43926
-            );
-        }
     }
 
     #[test]

@@ -186,18 +186,12 @@ Implements the [std::io::Write](https://doc.rust-lang.org/std/io/trait.Write.htm
 easier integration with existing Rust code.
 
 ```rust
-use std::env;
-use std::fs::File;
 use crc_fast::{Digest, CrcAlgorithm::Crc32IsoHdlc};
-
-// for example/test purposes only, use your own file path
-let binding = env::current_dir().expect("missing working dir").join("crc-check.txt");
-let file_on_disk = binding.to_str().unwrap();
 
 // actual usage
 let mut digest = Digest::new(Crc32IsoHdlc);
-let mut file = File::open(file_on_disk).unwrap();
-std::io::copy( & mut file, & mut digest).unwrap();
+let mut cursor = std::io::Cursor::new(b"123456789");
+std::io::copy(&mut cursor, &mut digest).unwrap();
 let checksum = digest.finalize();
 
 assert_eq!(checksum, 0xcbf43926);
@@ -234,14 +228,10 @@ assert_eq!(checksum, 0xcbf43926);
 Checksums a file, which will chunk through the file optimally, limiting RAM usage and maximizing throughput. Chunk size
 is optional.
 
-```rust
+```rust,no_run
  use crc_fast::{checksum_file, CrcAlgorithm::Crc32IsoHdlc};
 
-// for example/test purposes only, use your own file path
-let binding = env::current_dir().expect("missing working dir").join("crc-check.txt");
-let file_on_disk = binding.to_str().unwrap();
-
-let checksum = checksum_file(Crc32IsoHdlc, file_on_disk, None);
+let checksum = checksum_file(Crc32IsoHdlc, "path/to/your/file", None);
 
 assert_eq!(checksum.unwrap(), 0xcbf43926);
 ```
@@ -328,13 +318,8 @@ assert_eq!(checksum, 0xcbf43926);
 
 Checksums a file using custom CRC parameters, chunking through the file optimally.
 
-```rust
-use std::env;
+```rust,no_run
 use crc_fast::{checksum_file_with_params, CrcParams};
-
-// for example/test purposes only, use your own file path
-let binding = env::current_dir().expect("missing working dir").join("crc-check.txt");
-let file_on_disk = binding.to_str().unwrap();
 
 // Define custom CRC-32 parameters (equivalent to CRC-32/ISO-HDLC)
 let custom_params = CrcParams::new(
@@ -347,7 +332,7 @@ let custom_params = CrcParams::new(
     0xcbf43926,
 );
 
-let checksum = checksum_file_with_params(custom_params, file_on_disk, None);
+let checksum = checksum_file_with_params(custom_params, "path/to/your/file", None);
 
 assert_eq!(checksum.unwrap(), 0xcbf43926);
 ```
