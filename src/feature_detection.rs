@@ -252,6 +252,11 @@ unsafe fn detect_x86_features() -> ArchCapabilities {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 unsafe fn detect_avx10() -> (bool, bool, bool) {
     const ABSENT: (bool, bool, bool) = (false, false, false);
+    // Miri cannot interpret CPUID/XGETBV (inline asm). Report AVX10 as
+    // absent under interpretation, same as pre-AVX10 hardware.
+    if cfg!(miri) {
+        return ABSENT;
+    }
     #[cfg(target_arch = "x86")]
     use core::arch::x86::{__cpuid, __cpuid_count, _xgetbv};
     #[cfg(target_arch = "x86_64")]
