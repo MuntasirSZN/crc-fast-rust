@@ -490,7 +490,7 @@ pub fn select_performance_tier_for_test(capabilities: &ArchCapabilities) -> Perf
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
@@ -669,7 +669,7 @@ mod tests {
 
     // Mock tests for compile-time and runtime feature agreement scenarios
     mod mock_feature_agreement_tests {
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
         use super::test;
         use super::*;
 
@@ -707,7 +707,7 @@ mod tests {
 
     // Comprehensive tier selection tests across different hardware configurations
     mod tier_selection_comprehensive_tests {
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
         use super::test;
         use super::*;
 
@@ -855,7 +855,7 @@ mod tests {
 
     // Tests for graceful degradation between performance tiers
     mod graceful_degradation_tests {
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
         use super::test;
         use super::*;
 
@@ -973,7 +973,7 @@ mod tests {
 #[cfg(test)]
 mod software_fallback_tests {
     use super::*;
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     use wasm_bindgen_test::wasm_bindgen_test as test;
     #[test]
     fn test_aarch64_without_aes_falls_back_to_software() {

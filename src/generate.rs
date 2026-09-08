@@ -755,7 +755,7 @@ mod tests {
     use super::*;
     use crate::crc16::consts::{KEYS_1021_REVERSE, KEYS_8BB7_FORWARD};
     use crate::test::consts::TEST_ALL_CONFIGS;
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]

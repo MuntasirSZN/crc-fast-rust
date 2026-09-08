@@ -70,6 +70,17 @@ exn = { version = "0.4.0-rc.1", default-features = false, optional = true }
 crc = "3.4"
 rand = "0.10"
 
+# Browser/Node-only (`target_os = "unknown"`): `wasm-bindgen` cannot target
+# WASI, and the `wasm_js` backend pulls `js-sys` (likewise unknown-only).
+# WASI builds fall back to the default backends (WASI random).
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
+# `wasm_js` on both getrandom majors in the dev graph (`rand 0.10` -> 0.4,
+# `proptest` -> `rand 0.9` -> 0.3). The 0.3 line additionally needs
+# `--cfg getrandom_backend="wasm_js"` (see .cargo/config.toml).
+getrandom = { version = "0.4", features = ["wasm_js"] }
+getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+wasm-bindgen-test = "0.3"
+
 [target.'cfg(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64"))'.dependencies]
 cpufeatures = "0.3"
 
@@ -82,14 +93,8 @@ criterion = "0.8"
 proptest = "1.11"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3"
 criterion = { version = "0.8", default-features = false }
-# `wasm_js` on both getrandom majors in the dev graph (`rand 0.10` -> 0.4,
-# `proptest` -> `rand 0.9` -> 0.3). The 0.3 line additionally needs
-# `--cfg getrandom_backend="wasm_js"` (see .cargo/config.toml).
-getrandom = { version = "0.4", features = ["wasm_js"] }
-getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
-proptest = { version = "1.11", default-features = false, features = ["std", "bit-set"] }
+proptest = { version = "1.11", default-features = false, features = ["bit-set", "std"] }
 
 [features]
 # default features

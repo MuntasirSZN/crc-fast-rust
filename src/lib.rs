@@ -1501,7 +1501,7 @@ mod lib {
     use rand::{rng, RngExt};
     #[cfg(not(target_arch = "wasm32"))]
     use std::fs::{read, write};
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]

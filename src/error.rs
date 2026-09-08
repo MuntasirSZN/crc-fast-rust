@@ -96,7 +96,7 @@ impl core::error::Error for LockPoisoned {}
 mod tests {
     use super::*;
     use core::error::Error;
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]

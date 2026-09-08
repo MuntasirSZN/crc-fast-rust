@@ -186,23 +186,23 @@ unsafe fn update_x86_64_avx512_vpclmulqdq(
 
 /// Main entry point for wasm32.
 ///
-/// Branches on compile-time `simd128` enablement: the manual-SIMD backend
-/// when available, the scalar tables otherwise.
+/// Dispatches on the cached [`ArchOpsInstance`](crate::feature_detection::ArchOpsInstance)
+/// like the other architectures: the manual-SIMD backend when `simd128` is
+/// enabled at compile time (see `select_performance_tier`), the scalar
+/// tables otherwise. Routing through the instance (rather than branching on
+/// `cfg!(target_feature)` here) keeps the detection machinery live under
+/// every feature combination, including `no_std` without `alloc`.
 ///
 /// # Safety
 /// May use native CPU features
 #[inline(always)]
 #[cfg(target_arch = "wasm32")]
 pub(crate) unsafe fn update(state: u64, bytes: &[u8], params: &CrcParams) -> u64 {
-    if cfg!(target_feature = "simd128") {
-        update_wasm32_simd128(
-            state,
-            bytes,
-            params,
-            crate::arch::wasm32::simd128::WasmSimd128Ops,
-        )
-    } else {
-        crate::arch::software::update(state, bytes, params)
+    use crate::feature_detection::{get_arch_ops, ArchOpsInstance};
+
+    match get_arch_ops() {
+        ArchOpsInstance::WasmSimd128(ops) => update_wasm32_simd128(state, bytes, params, *ops),
+        ArchOpsInstance::SoftwareFallback => crate::arch::software::update(state, bytes, params),
     }
 }
 
@@ -241,7 +241,7 @@ mod tests {
     use crate::test::create_aligned_data;
     use crate::test::enums::AnyCrcTestConfig;
     use rand::{rng, RngExt};
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     use wasm_bindgen_test::wasm_bindgen_test as test;
 
     fn assert_update_matches_reference(data: &[u8]) {

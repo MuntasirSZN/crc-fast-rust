@@ -142,7 +142,9 @@ print-paths:
 # WebAssembly (mirrors the test-wasm job in .github/workflows/tests.yml)
 WASM_TARGET := wasm32-unknown-unknown
 WASI_TARGET := wasm32-wasip1
+WASI_P2_TARGET := wasm32-wasip2
 WASM_PACK := wasm-pack
+WASMTIME := wasmtime
 
 # One-stop wasm workflow: check + build + host tests + Node.js tests
 .PHONY: wasm
@@ -151,20 +153,37 @@ wasm: wasm-test
 # Install the wasm compilation targets
 .PHONY: wasm-targets
 wasm-targets:
-	rustup target add $(WASM_TARGET) $(WASI_TARGET)
+	rustup target add $(WASM_TARGET) $(WASI_TARGET) $(WASI_P2_TARGET)
 
 # Run the wasm test suites: host harness, Node.js, Node.js with simd128
 .PHONY: wasm-test
-wasm-test: wasm-test-node wasm-test-node-simd128
+wasm-test: wasm-test-node wasm-test-node-simd128 wasm-test-wasip1 wasm-test-wasip2
 
 # Browser-independent Node.js suite via wasm-bindgen-test
 .PHONY: wasm-test-node
 wasm-test-node:
 	@command -v $(WASM_PACK) >/dev/null 2>&1 || { echo "wasm-pack not found. Install with: cargo install wasm-pack --force"; exit 1; }
 	@$(WASM_PACK) test --node --all-features
+	@echo "Node.js tests completed"
 
 # Node.js suite with simd128 enabled (exercises src/arch/wasm32/simd128.rs)
 .PHONY: wasm-test-node-simd128
 wasm-test-node-simd128:
 	@command -v $(WASM_PACK) >/dev/null 2>&1 || { echo "wasm-pack not found. Install with: cargo install wasm-pack --force"; exit 1; }
 	@RUSTFLAGS="-C target-feature=+simd128" $(WASM_PACK) test --node --all-features
+	@echo "Node.js tests with simd128 completed"
+
+# WASI suites under Wasmtime (single-threaded harness: no threads on WASI).
+# Needs `make wasm-targets` plus wasmtime (https://wasmtime.dev/install.sh).
+.PHONY: wasm-test-wasip1
+wasm-test-wasip1:
+	@command -v $(WASMTIME) >/dev/null 2>&1 || { echo "wasmtime not found. Install from https://wasmtime.dev/install.sh"; exit 1; }
+	@CARGO_TARGET_WASM32_WASIP1_RUNNER="$(WASMTIME) run --dir ./target::target" cargo test --target $(WASI_TARGET) --all-features --lib --bins --tests -- --test-threads=1
+	@echo "WASI P1 tests completed"
+
+# Same for WASI 0.2 (CI runs this on nightly; works on recent stable too).
+.PHONY: wasm-test-wasip2
+wasm-test-wasip2:
+	@command -v $(WASMTIME) >/dev/null 2>&1 || { echo "wasmtime not found. Install from https://wasmtime.dev/install.sh"; exit 1; }
+	@CARGO_TARGET_WASM32_WASIP2_RUNNER="$(WASMTIME) run --dir ./target::target" cargo test --target $(WASI_P2_TARGET) --all-features --lib --bins --tests -- --test-threads=1
+	@echo "WASI P2 tests completed"

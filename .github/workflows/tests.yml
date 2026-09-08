@@ -333,6 +333,17 @@ jobs:
         run: wasm-pack test --node --all-features
         env:
           RUSTFLAGS: "-C target-feature=+simd128"
+      - if: ${{ matrix.target == 'wasm32-wasip1' || matrix.target == 'wasm32-wasip2' }}
+        name: Install wasmtime
+        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2.87.7
+        with:
+          tool: wasmtime-cli
+      - if: ${{ matrix.target == 'wasm32-wasip1' || matrix.target == 'wasm32-wasip2' }}
+        name: Run WASI tests under Wasmtime
+        run: cargo test --target ${{ matrix.target }} --all-features --lib --bins --tests -- --test-threads=1
+        env:
+          CARGO_TARGET_WASM32_WASIP1_RUNNER: "wasmtime run --dir ./target::target"
+          CARGO_TARGET_WASM32_WASIP2_RUNNER: "wasmtime run --dir ./target::target"
 
   fuzz-test:
     name: Fuzz Testing

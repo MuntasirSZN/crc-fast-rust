@@ -2,7 +2,7 @@
 //
 // Run under Node.js: wasm-pack test --node --all-features
 // (on wasm32 `test` resolves to `wasm_bindgen_test`; elsewhere built-in).
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 use crc_fast::{checksum, checksum_combine, checksum_with_params, CrcAlgorithm, CrcParams, Digest};
